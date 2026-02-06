@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.DS_Store
+
+# Logs (실험 데이터는 별도 관리)
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+*.key

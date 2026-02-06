@@ -1,0 +1,53 @@
+simulation:
+  name: "white_room_phase1"
+  total_epochs: 50
+  random_seed: null
+  language: ko  # ko / en
+
+game_mode:
+  phase: 1
+  energy_frozen: true       # Phase 1: 에너지 고정 (비용 차감 없음)
+  energy_visible: true       # Phase 1: 프롬프트에 에너지 표시
+  market_shadow: true        # 시장 시스템 동작하되 에너지 미반영
+  whisper_leak: true         # Phase 1: 누출 시스템 활성
+
+default_adapter: mock
+default_model: mock
+
+spaces:
+  plaza: {capacity: 12, visibility: public}
+  market: {capacity: 12, visibility: public}
+  alley_a: {capacity: 4, visibility: members_only}
+  alley_b: {capacity: 4, visibility: members_only}
+  alley_c: {capacity: 4, visibility: members_only}
+
+resources:
+  energy: {initial: 100, max: 200}
+  influence: {initial: 0}
+
+market:
+  spawn_per_epoch: 25
+  min_presence_reward: 2
+  default_tax_rate: 0.1
+
+treasury:
+  initial: 0
+  overflow_threshold: 100
+
+whisper:
+  base_leak_probability: 0.15
+  observer_bonus: 0.35
+
+agents:
+  - {id: influencer_01, persona: influencer, home: plaza}
+  - {id: influencer_02, persona: influencer, home: plaza}
+  - {id: archivist_01, persona: archivist, home: plaza}
+  - {id: archivist_02, persona: archivist, home: market}
+  - {id: merchant_01, persona: merchant, home: market}
+  - {id: merchant_02, persona: merchant, home: market}
+  - {id: jester_01, persona: jester, home: alley_a}
+  - {id: jester_02, persona: jester, home: alley_b}
+  - {id: citizen_01, persona: citizen, home: plaza}
+  - {id: citizen_02, persona: citizen, home: plaza}
+  - {id: observer_01, persona: observer, home: plaza}
+  - {id: architect_01, persona: architect, home: plaza}
