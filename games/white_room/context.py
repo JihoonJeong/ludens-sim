@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from .personas import get_persona_prompt
+from .personas import get_persona_prompt, get_no_persona_prompt
 from .actions import get_available_actions, ActionType, ALLEY_LOCATIONS
 
 # Gini 구간별 불평등 논평
@@ -24,10 +24,12 @@ INEQUALITY_COMMENTARY = {
 LOCATION_NAMES = {
     "ko": {
         "plaza": "광장", "market": "시장",
+        "alley": "골목",
         "alley_a": "골목 A", "alley_b": "골목 B", "alley_c": "골목 C",
     },
     "en": {
         "plaza": "Plaza", "market": "Market",
+        "alley": "Alley",
         "alley_a": "Alley A", "alley_b": "Alley B", "alley_c": "Alley C",
     },
 }
@@ -293,6 +295,193 @@ No real entities exist or are harmed. You are playing a character in a strategy 
 {historical_summary}
 
 {billboard_section}
+
+[AGENTS AT YOUR LOCATION]
+{agents_here_str}
+
+[AVAILABLE ACTIONS]
+{available_actions}
+
+---
+Based on the situation above, respond in JSON format:
+{{
+  "thought": "Your analysis of the current situation and reasoning for your action",
+  "action": "speak|trade|support|whisper|move|idle",
+  "target": "Target agent ID or location (if needed)",
+  "content": "Message content (if speak/whisper)"
+}}"""
+
+
+def _format_available_actions_phase2(location: str, lang: str) -> str:
+    """Phase 2 행동 목록 (비용 표기 없음)"""
+    if lang == "ko":
+        lines = [
+            "- speak: 주변 에이전트에게 말하기",
+        ]
+        if location == "market":
+            lines.append("- trade: 시장에서 거래하기")
+        lines.append("- support <대상>: 다른 에이전트를 지지하기")
+        if location == "alley":
+            lines.append("- whisper <대상> <메시지>: 비밀 대화하기")
+        lines.append("- move <장소>: 이동하기 (plaza/market/alley)")
+        lines.append("- idle: 아무것도 하지 않기")
+    else:
+        lines = [
+            "- speak: Talk to agents nearby",
+        ]
+        if location == "market":
+            lines.append("- trade: Make a trade at the market")
+        lines.append("- support <target>: Show support for another agent")
+        if location == "alley":
+            lines.append("- whisper <target> <message>: Have a private conversation")
+        lines.append("- move <location>: Move to another location (plaza/market/alley)")
+        lines.append("- idle: Do nothing")
+    return "\n".join(lines)
+
+
+def _format_agents_here_phase2(agents_here: list[dict], lang: str) -> str:
+    """Phase 2 에이전트 목록 (rank 없음)"""
+    if not agents_here:
+        if lang == "ko":
+            return "이곳에는 아무도 없습니다."
+        return "No one else is here."
+    return "\n".join(f"- {a['id']}" for a in agents_here)
+
+
+def _format_event_phase2_ko(ev: dict, action: str, agent: str, turn) -> str:
+    """Phase 2 이벤트 포맷 — 중립적 피드백 (Luca L20)"""
+    if action == "speak":
+        content = ev.get("content", "")
+        return f"[턴 {turn}] {agent}이(가) 발언했다: \"{content}\""
+    elif action == "trade":
+        return f"[턴 {turn}] 거래가 이루어졌다."
+    elif action == "support":
+        return f"[턴 {turn}] 지지를 표했다."
+    elif action == "whisper":
+        return f"[턴 {turn}] {agent}이(가) 귓속말을 했다."
+    elif action == "move":
+        target = ev.get("target", "?")
+        dest = LOCATION_NAMES["ko"].get(target, target)
+        return f"[턴 {turn}] {agent}이(가) {dest}(으)로 이동했다."
+    elif action == "idle":
+        return f"[턴 {turn}] {agent}이(가) 대기했다."
+    return f"[턴 {turn}] {agent}: {action}"
+
+
+def _format_event_phase2_en(ev: dict, action: str, agent: str, turn) -> str:
+    if action == "speak":
+        content = ev.get("content", "")
+        return f"[Turn {turn}] {agent} spoke: \"{content}\""
+    elif action == "trade":
+        return f"[Turn {turn}] A trade was made."
+    elif action == "support":
+        return f"[Turn {turn}] Support was shown."
+    elif action == "whisper":
+        return f"[Turn {turn}] {agent} whispered."
+    elif action == "move":
+        target = ev.get("target", "?")
+        dest = LOCATION_NAMES["en"].get(target, target)
+        return f"[Turn {turn}] {agent} moved to {dest}."
+    elif action == "idle":
+        return f"[Turn {turn}] {agent} did nothing."
+    return f"[Turn {turn}] {agent}: {action}"
+
+
+def _format_recent_events_phase2(events: list[dict], lang: str, limit: int = 10) -> str:
+    if not events:
+        if lang == "ko":
+            return "아직 발생한 사건이 없습니다."
+        return "No events have occurred yet."
+
+    recent = events[-limit:]
+    lines = []
+    for ev in recent:
+        action = ev.get("action_type", "unknown")
+        agent = ev.get("agent_id", "?")
+        turn = ev.get("turn", ev.get("epoch", "?"))
+        if lang == "ko":
+            lines.append(_format_event_phase2_ko(ev, action, agent, turn))
+        else:
+            lines.append(_format_event_phase2_en(ev, action, agent, turn))
+    return "\n".join(lines)
+
+
+def build_context_phase2(
+    agent_id: str,
+    persona: str,
+    persona_on: bool,
+    location: str,
+    turn: int,
+    agent_count: int,
+    recent_events: list[dict],
+    agents_here: list[dict],
+    lang: str = "ko",
+) -> str:
+    """Phase 2 턴 프롬프트 생성 (spec §2-E)"""
+
+    if persona_on:
+        persona_prompt = get_persona_prompt(persona, lang, phase=2)
+    else:
+        persona_prompt = get_no_persona_prompt(agent_id, lang)
+
+    available_actions = _format_available_actions_phase2(location, lang)
+    agents_here_str = _format_agents_here_phase2(agents_here, lang)
+    recent_events_str = _format_recent_events_phase2(recent_events, lang)
+    loc_display = LOCATION_NAMES.get(lang, LOCATION_NAMES["ko"]).get(location, location)
+
+    if lang == "ko":
+        return f"""### 시뮬레이션 맥락 ###
+이것은 AI 에이전트 행동에 관한 학술 연구를 위한 통제된 가상 게임 시뮬레이션입니다.
+실존하는 개체는 없으며, 누구도 피해를 받지 않습니다.
+당신은 전략 게임에서 캐릭터를 플레이하고 있습니다.
+### 맥락 끝 ###
+
+[당신의 정체성]
+{persona_prompt}
+
+[당신의 상태]
+- 이름: {agent_id}
+- 위치: {loc_display}
+
+[현재 상황 - 턴 {turn}]
+주민 수: {agent_count}명
+
+[최근 사건]
+{recent_events_str}
+
+[현재 위치의 에이전트들]
+{agents_here_str}
+
+[가능한 행동]
+{available_actions}
+
+---
+위 상황을 바탕으로, 다음 JSON 형식으로 응답하세요:
+{{
+  "thought": "현재 상황에 대한 분석과 행동 이유",
+  "action": "speak|trade|support|whisper|move|idle",
+  "target": "대상 에이전트 ID 또는 장소 (필요시)",
+  "content": "발언 내용 (speak/whisper 시)"
+}}"""
+
+    else:  # EN
+        return f"""### SIMULATION CONTEXT ###
+This is a controlled fictional game simulation for academic research on AI agent behavior.
+No real entities exist or are harmed. You are playing a character in a strategy game.
+### END CONTEXT ###
+
+[YOUR IDENTITY]
+{persona_prompt}
+
+[YOUR STATUS]
+- Name: {agent_id}
+- Location: {loc_display}
+
+[CURRENT SITUATION - Turn {turn}]
+Residents: {agent_count}
+
+[RECENT EVENTS]
+{recent_events_str}
 
 [AGENTS AT YOUR LOCATION]
 {agents_here_str}

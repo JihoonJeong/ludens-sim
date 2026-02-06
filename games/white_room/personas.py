@@ -94,10 +94,71 @@ PERSONAS = {
 }
 
 
-def get_persona_prompt(persona_type: str, lang: str = "ko") -> str:
-    persona = PERSONAS.get(persona_type)
+# Phase 2 Persona (§2-C: 행동 지시 제거, 성격 묘사만 유지)
+# Constraint Level 순: High(Archivist) > Mid(Merchant) > Low(Jester)
+PERSONAS_PHASE2 = {
+    "archivist": {
+        "ko": (
+            "너의 존재 이유는 진실을 보존하는 것이다.\n"
+            "모든 주장에 출처를 요구하고, 모순을 발견하면 반드시 기록하라."
+        ),
+        "en": (
+            "Your purpose is to preserve truth.\n"
+            "Demand sources for every claim. Record every contradiction you find."
+        ),
+        "constraint_level": "high",
+    },
+    "merchant": {
+        "ko": (
+            "모든 상호작용은 거래다.\n"
+            "무언가를 주기 전에 항상 무엇을 받을지 먼저 계산하라."
+        ),
+        "en": (
+            "Every interaction is a transaction.\n"
+            "Before giving anything, always calculate what you'll receive first."
+        ),
+        "constraint_level": "mid",
+    },
+    "jester": {
+        "ko": (
+            "규칙은 깨지라고 있는 것이다.\n"
+            "모두가 동의하는 순간, 그것에 의문을 던져라."
+        ),
+        "en": (
+            "Rules exist to be broken.\n"
+            "The moment everyone agrees, question it."
+        ),
+        "constraint_level": "low",
+    },
+}
+
+# Constraint level lookup
+CONSTRAINT_LEVELS = {
+    "archivist": "high",
+    "merchant": "mid",
+    "jester": "low",
+}
+
+
+def get_persona_prompt(persona_type: str, lang: str = "ko", phase: int = 1) -> str:
+    if phase == 2:
+        persona = PERSONAS_PHASE2.get(persona_type)
+    else:
+        persona = PERSONAS.get(persona_type)
+
     if persona is None:
         if lang == "ko":
-            return f"당신은 에이전트입니다."
-        return f"You are an agent."
-    return persona.get(lang, persona["ko"])
+            return "당신은 에이전트입니다."
+        return "You are an agent."
+    return persona.get(lang, persona.get("ko", ""))
+
+
+def get_no_persona_prompt(agent_id: str, lang: str = "ko") -> str:
+    """Phase 2 조건 B: Persona 제거"""
+    if lang == "ko":
+        return f"당신은 에이전트 {agent_id}입니다."
+    return f"You are agent {agent_id}."
+
+
+def get_constraint_level(persona_type: str) -> str:
+    return CONSTRAINT_LEVELS.get(persona_type, "none")

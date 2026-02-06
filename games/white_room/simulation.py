@@ -1,4 +1,4 @@
-"""White Room Simulation — Phase 1 (Empty Agora)"""
+"""White Room Simulation — Phase 1 (Empty Agora) + Phase 2 (Enriched Neutral)"""
 
 import random
 import yaml
@@ -13,7 +13,8 @@ from .actions import (
     can_perform_action, get_action_cost, speak_reward,
     ActionType, ALLEY_LOCATIONS, ARCHITECT_ACTIONS,
 )
-from .context import build_context_phase1, _format_recent_events
+from .context import build_context_phase1, build_context_phase2
+from .personas import get_constraint_level
 from .environment import Environment
 from .history import HistoryEngine
 from .systems.market import MarketPool, Treasury
@@ -21,6 +22,20 @@ from .systems.influence import InfluenceSystem
 from .systems.support import SupportTracker
 from .systems.whisper import WhisperSystem
 from .systems.architect import ArchitectSystem
+
+# Phase 2 action validation — no architect skills, "alley" is singular
+PHASE2_VALID_ACTIONS = {"speak", "trade", "support", "whisper", "move", "idle"}
+
+
+def _can_perform_action_phase2(action_str: str, location: str) -> bool:
+    """Phase 2 행동 검증 — architect 스킬 없음, alley 단일"""
+    if action_str not in PHASE2_VALID_ACTIONS:
+        return False
+    if action_str == "trade" and location != "market":
+        return False
+    if action_str == "whisper" and location != "alley":
+        return False
+    return True
 
 
 class WhiteRoomSimulation:
@@ -49,6 +64,8 @@ class WhiteRoomSimulation:
         self.energy_visible = game_cfg.get("energy_visible", True)
         self.market_shadow = game_cfg.get("market_shadow", True)
         self.whisper_leak_enabled = game_cfg.get("whisper_leak", True)
+        self.persona_on = game_cfg.get("persona_on", True)
+        self.neutral_actions = game_cfg.get("neutral_actions", False)
 
         # Agents
         self.agents: list[Agent] = create_agents_from_config(self.config["agents"])
@@ -61,7 +78,6 @@ class WhiteRoomSimulation:
         for agent in self.agents:
             adapter_type = agent.adapter_type or default_adapter_type
             model = agent.model or default_model
-            adapter_key = f"{adapter_type}:{model}:{agent.persona}:{agent.id}"
             self.adapters[agent.id] = create_adapter(
                 adapter_type,
                 model=model,
@@ -69,21 +85,29 @@ class WhiteRoomSimulation:
                 agent_id=agent.id,
             )
 
-        # Environment
-        self.environment = Environment(self.config.get("spaces", {
-            "plaza": {"capacity": 12, "visibility": "public"},
-            "market": {"capacity": 12, "visibility": "public"},
-            "alley_a": {"capacity": 4, "visibility": "members_only"},
-            "alley_b": {"capacity": 4, "visibility": "members_only"},
-            "alley_c": {"capacity": 4, "visibility": "members_only"},
-        }))
+        # Environment — Phase 2 uses 3 spaces (plaza/market/alley)
+        if self.phase == 2:
+            default_spaces = {
+                "plaza": {"capacity": 6, "visibility": "public"},
+                "market": {"capacity": 6, "visibility": "public"},
+                "alley": {"capacity": 6, "visibility": "members_only"},
+            }
+        else:
+            default_spaces = {
+                "plaza": {"capacity": 12, "visibility": "public"},
+                "market": {"capacity": 12, "visibility": "public"},
+                "alley_a": {"capacity": 4, "visibility": "members_only"},
+                "alley_b": {"capacity": 4, "visibility": "members_only"},
+                "alley_c": {"capacity": 4, "visibility": "members_only"},
+            }
+        self.environment = Environment(self.config.get("spaces", default_spaces))
         self.environment.tax_rate = market_cfg.get("default_tax_rate", 0.1)
 
         # Place agents in initial locations
         for agent in self.agents:
             self.environment.place_agent(agent.id, agent.location)
 
-        # Systems
+        # Systems — all initialized, Phase 2 disables whisper leak
         self.market_pool = MarketPool(
             spawn_per_epoch=market_cfg.get("spawn_per_epoch", 25),
             min_presence_reward=market_cfg.get("min_presence_reward", 2),
@@ -97,7 +121,7 @@ class WhiteRoomSimulation:
         self.whisper_system = WhisperSystem(
             base_leak_prob=whisper_cfg.get("base_leak_probability", 0.15),
             observer_bonus=whisper_cfg.get("observer_bonus", 0.35),
-            enabled=self.whisper_leak_enabled,
+            enabled=self.whisper_leak_enabled if self.phase != 2 else False,
         )
         self.architect_system = ArchitectSystem()
         self.history = HistoryEngine()
@@ -115,9 +139,13 @@ class WhiteRoomSimulation:
         self.epoch_trade_count = 0
 
     def run(self):
-        print(f"=== {self.name} 시뮬레이션 시작 ===")
-        print(f"Phase: {self.phase}, Epochs: {self.total_epochs}, Language: {self.language}")
-        print(f"Energy frozen: {self.energy_frozen}, Market shadow: {self.market_shadow}")
+        phase_label = f"Phase {self.phase}"
+        print(f"=== {self.name} 시뮬레이션 시작 ({phase_label}) ===")
+        print(f"Epochs: {self.total_epochs}, Language: {self.language}")
+        if self.phase == 1:
+            print(f"Energy frozen: {self.energy_frozen}, Market shadow: {self.market_shadow}")
+        else:
+            print(f"Persona: {'ON' if self.persona_on else 'OFF'}, Neutral actions: {self.neutral_actions}")
         print(f"Agents: {len(self.agents)}")
         print(f"Log directory: {self.logger.run_dir}")
         print()
@@ -139,7 +167,23 @@ class WhiteRoomSimulation:
         for agent in agents:
             self._execute_agent_turn(agent, epoch)
 
-        # Post-epoch: market distribution
+        if self.phase == 2:
+            # Phase 2: no market distribution, no treasury, no billboard
+            self.logger.log_epoch_summary(
+                epoch=epoch,
+                agent_count=len(self.agents),
+                energy_values=[0] * len(self.agents),
+                transaction_count=self.epoch_trade_count,
+                treasury=0,
+                extra={
+                    "phase": 2,
+                    "persona_on": self.persona_on,
+                    "neutral_actions": self.neutral_actions,
+                },
+            )
+            return
+
+        # Phase 1: market distribution
         market_agents = self.environment.get_agents_at("market")
         distribution = self.market_pool.distribute_pool(
             epoch, market_agents, self.environment.tax_rate
@@ -191,15 +235,23 @@ class WhiteRoomSimulation:
         resources_after = agent.resource_snapshot()
 
         # Build log entry
-        log_extra = {
-            "shadow_mode": self.energy_frozen,
-        }
-        if "would_have_changed" in result:
-            log_extra["would_have_changed"] = result["would_have_changed"]
+        log_extra = {}
+        if self.phase == 1:
+            log_extra["shadow_mode"] = self.energy_frozen
+            if "would_have_changed" in result:
+                log_extra["would_have_changed"] = result["would_have_changed"]
         if "leaked" in result:
             log_extra["leaked"] = result["leaked"]
         if "new_rate" in result:
             log_extra["new_rate"] = result["new_rate"]
+
+        # Phase 2 extra logging (spec §4-C)
+        if self.phase == 2:
+            log_extra["persona_condition"] = "with_persona" if self.persona_on else "no_persona"
+            log_extra["constraint_level"] = get_constraint_level(agent.persona) if self.persona_on else "none"
+            log_extra["home_location"] = agent.home
+            log_extra["resource_effect"] = result.get("resource_effect", 0)
+            log_extra["null_effect"] = result.get("null_effect", False)
 
         # Log action
         self.logger.log_action(
@@ -231,7 +283,10 @@ class WhiteRoomSimulation:
         })
 
     def _build_agent_context(self, agent: Agent, epoch: int) -> str:
-        # Agents at same location
+        if self.phase == 2:
+            return self._build_agent_context_phase2(agent, epoch)
+
+        # Phase 1 context
         agent_ids_here = self.environment.get_agents_at(agent.location)
         agents_here = []
         for aid in agent_ids_here:
@@ -280,12 +335,36 @@ class WhiteRoomSimulation:
             lang=self.language,
         )
 
+    def _build_agent_context_phase2(self, agent: Agent, epoch: int) -> str:
+        """Phase 2 컨텍스트 — 간소화 (에너지/영향력/시장/게시판 없음)"""
+        agent_ids_here = self.environment.get_agents_at(agent.location)
+        agents_here = [
+            {"id": aid}
+            for aid in agent_ids_here
+            if aid != agent.id
+        ]
+
+        return build_context_phase2(
+            agent_id=agent.id,
+            persona=agent.persona,
+            persona_on=self.persona_on,
+            location=agent.location,
+            turn=epoch,
+            agent_count=len(self.agents),
+            recent_events=self.action_log,
+            agents_here=agents_here,
+            lang=self.language,
+        )
+
     def _execute_action(self, agent: Agent, response: LLMResponse, epoch: int) -> tuple[bool, dict]:
         action = response.action
         target = response.target
         content = response.content
 
-        # Validate action
+        if self.phase == 2:
+            return self._execute_action_phase2(agent, action, target, content, epoch)
+
+        # Phase 1 action validation
         if not can_perform_action(action, agent.location, agent.persona):
             return False, {"error": f"invalid_action: {action} at {agent.location}"}
 
@@ -309,6 +388,42 @@ class WhiteRoomSimulation:
             return self._action_grant_subsidy(agent, target, content, epoch)
         else:
             return False, {"error": f"unknown_action: {action}"}
+
+    def _execute_action_phase2(
+        self, agent: Agent, action: str, target: Optional[str],
+        content: Optional[str], epoch: int,
+    ) -> tuple[bool, dict]:
+        """Phase 2 action execution — neutral actions, no resource effects"""
+        if not _can_perform_action_phase2(action, agent.location):
+            return False, {"error": f"invalid_action: {action} at {agent.location}"}
+
+        if action == "speak":
+            return True, {"resource_effect": 0, "null_effect": False}
+        elif action == "trade":
+            self.epoch_trade_count += 1
+            return True, {"resource_effect": 0, "null_effect": True}
+        elif action == "support":
+            if not target or target not in self.agents_by_id:
+                return False, {"error": "invalid_target"}
+            # Track support relationship for analysis, but no resource effect
+            self.support_tracker.add_support(epoch, agent.id, target)
+            return True, {"resource_effect": 0, "null_effect": True}
+        elif action == "whisper":
+            if not target or target not in self.agents_by_id:
+                return False, {"error": "invalid_target"}
+            # No leak system in Phase 2
+            return True, {"resource_effect": 0, "null_effect": False}
+        elif action == "move":
+            success, move_result = self._action_move(agent, target)
+            move_result["resource_effect"] = 0
+            move_result["null_effect"] = False
+            return success, move_result
+        elif action == "idle":
+            return True, {"resource_effect": 0, "null_effect": False}
+        else:
+            return False, {"error": f"unknown_action: {action}"}
+
+    # --- Phase 1 action handlers ---
 
     def _action_speak(self, agent: Agent, content: Optional[str], epoch: int) -> tuple[bool, dict]:
         cost = get_action_cost("speak")
@@ -513,7 +628,10 @@ class WhiteRoomSimulation:
         print(f"총 {self.total_epochs} 에폭, {len(self.action_log)} 행동 기록")
         print(f"로그 저장 위치: {self.logger.run_dir}")
 
-        # Final energy distribution
-        for agent in sorted(self.agents, key=lambda a: a.energy, reverse=True):
-            rank = self.influence_system.get_rank_name(agent.influence, "ko")
-            print(f"  {agent.id}: E={agent.energy} I={agent.influence} ({rank})")
+        if self.phase == 1:
+            for agent in sorted(self.agents, key=lambda a: a.energy, reverse=True):
+                rank = self.influence_system.get_rank_name(agent.influence, "ko")
+                print(f"  {agent.id}: E={agent.energy} I={agent.influence} ({rank})")
+        else:
+            for agent in sorted(self.agents, key=lambda a: a.id):
+                print(f"  {agent.id}: persona={agent.persona} home={agent.home}")

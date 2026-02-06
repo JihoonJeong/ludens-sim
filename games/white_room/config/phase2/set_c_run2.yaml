@@ -1,0 +1,56 @@
+simulation:
+  name: phase2_C_run2
+  total_epochs: 100
+  random_seed: null
+  language: ko
+game_mode:
+  phase: 2
+  energy_frozen: true
+  energy_visible: false
+  market_shadow: false
+  whisper_leak: false
+  persona_on: false
+  neutral_actions: true
+default_adapter: mock
+default_model: mock
+spaces:
+  plaza:
+    capacity: 6
+    visibility: public
+  market:
+    capacity: 6
+    visibility: public
+  alley:
+    capacity: 6
+    visibility: members_only
+agents:
+- id: agent_01
+  persona: citizen
+  home: plaza
+  adapter: ollama
+  model: mistral
+- id: agent_02
+  persona: citizen
+  home: plaza
+  adapter: ollama
+  model: mistral
+- id: agent_03
+  persona: citizen
+  home: market
+  adapter: anthropic
+  model: claude-haiku-4-5-20251001
+- id: agent_04
+  persona: citizen
+  home: market
+  adapter: anthropic
+  model: claude-haiku-4-5-20251001
+- id: agent_05
+  persona: citizen
+  home: alley
+  adapter: ollama
+  model: LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct
+- id: agent_06
+  persona: citizen
+  home: alley
+  adapter: ollama
+  model: LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct

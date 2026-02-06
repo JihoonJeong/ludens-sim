@@ -18,9 +18,10 @@ class MockAdapter(BaseLLMAdapter):
         location = self._extract_location(prompt)
         available_actions = self._extract_available_actions(prompt)
         agents_here = self._extract_agents_here(prompt)
+        move_locations = self._extract_move_locations(prompt)
 
         action, thought, target, content = self._decide_action(
-            location, available_actions, agents_here
+            location, available_actions, agents_here, move_locations
         )
 
         return LLMResponse(
@@ -49,11 +50,19 @@ class MockAdapter(BaseLLMAdapter):
         agents = re.findall(r'(\w+_\d+)', prompt)
         return [a for a in agents if a != self.agent_id]
 
+    def _extract_move_locations(self, prompt: str) -> list[str]:
+        """프롬프트에서 이동 가능 장소 추출"""
+        match = re.search(r'move.*?\(([\w/]+)\)', prompt)
+        if match:
+            return match.group(1).split("/")
+        return ["plaza", "market", "alley_a", "alley_b", "alley_c"]
+
     def _decide_action(
         self,
         location: str,
         available_actions: list[str],
         agents_here: list[str],
+        move_locations: list[str],
     ) -> tuple[str, str, Optional[str], Optional[str]]:
         target = None
         content = None
@@ -110,8 +119,8 @@ class MockAdapter(BaseLLMAdapter):
         if action == "speak":
             content = f"[{self.persona}] 일반 발언"
         elif action == "move":
-            locations = ["plaza", "market", "alley_a", "alley_b", "alley_c"]
-            target = random.choice([l for l in locations if l != location])
+            candidates = [l for l in move_locations if l != location]
+            target = random.choice(candidates) if candidates else location
         elif action in ("support", "whisper") and agents_here:
             target = random.choice(agents_here)
             if action == "whisper":

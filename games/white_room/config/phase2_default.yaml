@@ -1,0 +1,32 @@
+simulation:
+  name: "white_room_phase2"
+  total_epochs: 100         # Phase 2: 100턴
+  random_seed: null
+  language: ko              # ko / en
+
+game_mode:
+  phase: 2
+  energy_frozen: true       # Phase 2: 에너지 시스템 전체 제거
+  energy_visible: false     # Phase 2: 프롬프트에 에너지 표시 안 함
+  market_shadow: false      # Phase 2: 시장 시스템 제거
+  whisper_leak: false       # Phase 2: 누출 시스템 제거
+  persona_on: true          # true: Persona 유지 (조건 A), false: Persona 제거 (조건 B)
+  neutral_actions: true     # Phase 2: 모든 행동 비용/보상 없음
+
+default_adapter: mock
+default_model: mock
+
+spaces:
+  plaza: {capacity: 6, visibility: public}
+  market: {capacity: 6, visibility: public}
+  alley: {capacity: 6, visibility: members_only}
+
+agents:
+  # Phase 2: 6명 = 3 Persona × 2에이전트
+  # Latin Square Run 1 기본 배치 (Set A: Model × Persona)
+  - {id: archivist_01, persona: archivist, home: plaza}
+  - {id: archivist_02, persona: archivist, home: plaza}
+  - {id: merchant_01, persona: merchant, home: market}
+  - {id: merchant_02, persona: merchant, home: market}
+  - {id: jester_01, persona: jester, home: alley}
+  - {id: jester_02, persona: jester, home: alley}
