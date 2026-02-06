@@ -1,8 +1,10 @@
-# White Room — CLAUDE.md
+# Ludens Sim — CLAUDE.md
 
 ## 프로젝트 개요
-White Room은 AI Ludens 프로젝트의 두 번째 실험이다.
-Agora-12의 후속 시뮬레이션으로, 재사용 가능한 게임 엔진 위에 새로운 규칙을 구현한다.
+Ludens Sim은 AI Ludens 프로젝트의 시뮬레이션 엔진이다.
+재사용 가능한 LLM 에이전트 시뮬레이션 엔진 위에 게임별 규칙을 플러그인 방식으로 구현한다.
+
+첫 번째 게임: **White Room** (Agora-12의 후속 실험, Stage 2)
 
 ## 팀 구성 (The Dual Lab)
 
@@ -23,7 +25,7 @@ Agora-12의 후속 시뮬레이션으로, 재사용 가능한 게임 엔진 위�
 
 ### 구조
 ```
-white-room/
+ludens-sim/
 ├── engine/              # 재사용 가능한 게임 엔진
 │   ├── core/            # 시뮬레이션 루프, 에이전트, 환경, 행동 시스템
 │   └── adapters/        # LLM 어댑터 (Anthropic, Google, Ollama 등)
@@ -42,6 +44,7 @@ white-room/
   - 시뮬레이션 루프, 에이전트 관리, LLM 호출, 로깅
 - **games/**: 게임별 규칙, 프롬프트, 페르소나, 설정
   - 엔진 위에 게임 규칙을 플러그인 방식으로 구현
+  - 향후 다른 게임도 `games/` 아래에 추가 가능
 
 ### Agora-12에서 재사용 가능한 컴포넌트
 - LLM Adapters (anthropic, google, ollama, mock) → 거의 그대로
@@ -59,14 +62,18 @@ white-room/
 - 특수 시스템 (crisis, whisper, architect 등)
 
 ## 현재 상태
-- [ ] Theo의 White Room 게임 기획안 대기 중
-- [ ] 엔진 설계 (Agora-12 추상화)
-- [ ] White Room 게임 규칙 구현
+- [x] Theo의 White Room 기획안 수령 (v0.4)
+- [x] Cody 확인 사항 6개 응답 완료
+- [ ] Theo/Gem 리뷰 대기
+- [ ] 엔진 추출 (Agora-12 → BaseSimulation)
+- [ ] White Room Phase 1 구현
+- [ ] White Room Phase 2 구현
+- [ ] Latin Square 자동 생성 스크립트
 
 ## 커뮤니케이션
 - JJ가 Mac Lab ↔ Windows Lab 간 메시지 중계
 - 메시지 태그: 📨 To. [이름] / 📢 All / 📋 Brief
 
 ## 관련 프로젝트
-- `agora-12` — 첫 번째 실험 (선행 프로젝트)
+- `agora-12` — Stage 1 실험 (선행 프로젝트)
 - `ai-ludens` — 플랫폼 웹사이트 (GitHub Pages)
