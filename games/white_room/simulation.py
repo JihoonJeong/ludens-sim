@@ -236,6 +236,9 @@ class WhiteRoomSimulation:
 
         # Build log entry
         log_extra = {}
+        # Parse quality metrics (Theo §3: Shell Compatibility 언어 차원 데이터)
+        log_extra["parse_success"] = response.success
+        log_extra["raw_action"] = response.action
         if self.phase == 1:
             log_extra["shadow_mode"] = self.energy_frozen
             if "would_have_changed" in result:

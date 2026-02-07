@@ -10,7 +10,7 @@ game_mode:
   market_shadow: true
   whisper_leak: true
 default_adapter: ollama
-default_model: mistral
+default_model: mistral:7b
 spaces:
   plaza:
     capacity: 12

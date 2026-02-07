@@ -10,7 +10,7 @@ game_mode:
   market_shadow: true
   whisper_leak: true
 default_adapter: ollama
-default_model: LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct
+default_model: exaone3.5:7.8b
 spaces:
   plaza:
     capacity: 12
