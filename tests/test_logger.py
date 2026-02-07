@@ -56,7 +56,7 @@ class TestSimulationLogger:
             resources_before={"energy": 100}, resources_after={"energy": 100},
         )
         assert logger.action_log_path.exists()
-        with open(logger.action_log_path) as f:
+        with open(logger.action_log_path, encoding="utf-8") as f:
             entry = json.loads(f.readline())
         assert entry["epoch"] == 1
         assert entry["agent_id"] == "a1"
@@ -70,7 +70,7 @@ class TestSimulationLogger:
             resources_before={"energy": 100}, resources_after={"energy": 100},
             extra={"shadow_mode": True, "would_have_changed": -2},
         )
-        with open(logger.action_log_path) as f:
+        with open(logger.action_log_path, encoding="utf-8") as f:
             entry = json.loads(f.readline())
         assert entry["shadow_mode"] is True
         assert entry["would_have_changed"] == -2
@@ -82,7 +82,7 @@ class TestSimulationLogger:
             transaction_count=3, treasury=10.0,
         )
         assert logger.epoch_log_path.exists()
-        with open(logger.epoch_log_path) as f:
+        with open(logger.epoch_log_path, encoding="utf-8") as f:
             entry = json.loads(f.readline())
         assert entry["epoch"] == 1
         assert entry["gini_coefficient"] == 0.0
@@ -96,7 +96,7 @@ class TestSimulationLogger:
                 thought="", success=True,
                 resources_before={}, resources_after={},
             )
-        with open(logger.action_log_path) as f:
+        with open(logger.action_log_path, encoding="utf-8") as f:
             lines = f.readlines()
         turns = [json.loads(l)["turn"] for l in lines]
         assert turns == [1, 2, 3]
@@ -115,7 +115,7 @@ class TestSimulationLogger:
             thought="", success=True,
             resources_before={}, resources_after={},
         )
-        with open(logger.action_log_path) as f:
+        with open(logger.action_log_path, encoding="utf-8") as f:
             lines = f.readlines()
         assert json.loads(lines[1])["turn"] == 1
 

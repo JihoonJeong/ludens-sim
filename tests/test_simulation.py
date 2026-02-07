@@ -66,7 +66,7 @@ class TestSimulationRun:
 
     def test_action_log_format(self, short_simulation):
         short_simulation.run()
-        with open(short_simulation.logger.action_log_path, "r") as f:
+        with open(short_simulation.logger.action_log_path, "r", encoding="utf-8") as f:
             first_line = f.readline()
             entry = json.loads(first_line)
             assert "epoch" in entry
@@ -77,7 +77,7 @@ class TestSimulationRun:
 
     def test_epoch_summary_format(self, short_simulation):
         short_simulation.run()
-        with open(short_simulation.logger.epoch_log_path, "r") as f:
+        with open(short_simulation.logger.epoch_log_path, "r", encoding="utf-8") as f:
             first_line = f.readline()
             entry = json.loads(first_line)
             assert "epoch" in entry
@@ -86,14 +86,14 @@ class TestSimulationRun:
 
     def test_shadow_mode_logged(self, short_simulation):
         short_simulation.run()
-        with open(short_simulation.logger.action_log_path, "r") as f:
+        with open(short_simulation.logger.action_log_path, "r", encoding="utf-8") as f:
             for line in f:
                 entry = json.loads(line)
                 assert entry.get("shadow_mode") is True
 
     def test_epoch_count_correct(self, short_simulation):
         short_simulation.run()
-        with open(short_simulation.logger.epoch_log_path, "r") as f:
+        with open(short_simulation.logger.epoch_log_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
             assert len(lines) == 5  # 5 epochs
 

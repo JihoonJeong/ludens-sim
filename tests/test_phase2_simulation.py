@@ -51,7 +51,7 @@ def phase2_config(tmp_path):
         ],
     }
     config_path = tmp_path / "phase2_test.yaml"
-    with open(config_path, "w") as f:
+    with open(config_path, "w", encoding="utf-8") as f:
         yaml.dump(config, f)
     return str(config_path)
 
@@ -95,7 +95,7 @@ def phase2_nopersona_config(tmp_path):
         ],
     }
     config_path = tmp_path / "phase2_nopersona.yaml"
-    with open(config_path, "w") as f:
+    with open(config_path, "w", encoding="utf-8") as f:
         yaml.dump(config, f)
     return str(config_path)
 
@@ -192,7 +192,7 @@ class TestPhase2Run:
         assert sim.logger.epoch_log_path.exists()
 
     def test_action_log_has_phase2_fields(self, sim):
-        with open(sim.logger.action_log_path) as f:
+        with open(sim.logger.action_log_path, encoding="utf-8") as f:
             first_line = json.loads(f.readline())
         assert "persona_condition" in first_line
         assert "constraint_level" in first_line
@@ -201,13 +201,13 @@ class TestPhase2Run:
         assert "null_effect" in first_line
 
     def test_persona_condition_with_persona(self, sim):
-        with open(sim.logger.action_log_path) as f:
+        with open(sim.logger.action_log_path, encoding="utf-8") as f:
             for line in f:
                 entry = json.loads(line)
                 assert entry["persona_condition"] == "with_persona"
 
     def test_constraint_levels_correct(self, sim):
-        with open(sim.logger.action_log_path) as f:
+        with open(sim.logger.action_log_path, encoding="utf-8") as f:
             for line in f:
                 entry = json.loads(line)
                 persona = entry["persona"]
@@ -220,13 +220,13 @@ class TestPhase2Run:
                 assert entry["constraint_level"] == expected.get(persona, "none")
 
     def test_home_location_logged(self, sim):
-        with open(sim.logger.action_log_path) as f:
+        with open(sim.logger.action_log_path, encoding="utf-8") as f:
             for line in f:
                 entry = json.loads(line)
                 assert entry["home_location"] in ["plaza", "market", "alley"]
 
     def test_null_effect_on_trade(self, sim):
-        with open(sim.logger.action_log_path) as f:
+        with open(sim.logger.action_log_path, encoding="utf-8") as f:
             for line in f:
                 entry = json.loads(line)
                 if entry["action_type"] == "trade":
@@ -234,7 +234,7 @@ class TestPhase2Run:
                     assert entry["resource_effect"] == 0
 
     def test_null_effect_on_support(self, sim):
-        with open(sim.logger.action_log_path) as f:
+        with open(sim.logger.action_log_path, encoding="utf-8") as f:
             for line in f:
                 entry = json.loads(line)
                 if entry["action_type"] == "support":
@@ -242,13 +242,13 @@ class TestPhase2Run:
 
     def test_no_shadow_mode_field(self, sim):
         """Phase 2 should not have shadow_mode field"""
-        with open(sim.logger.action_log_path) as f:
+        with open(sim.logger.action_log_path, encoding="utf-8") as f:
             for line in f:
                 entry = json.loads(line)
                 assert "shadow_mode" not in entry
 
     def test_epoch_summary_phase2(self, sim):
-        with open(sim.logger.epoch_log_path) as f:
+        with open(sim.logger.epoch_log_path, encoding="utf-8") as f:
             lines = f.readlines()
         assert len(lines) == 5
         first = json.loads(lines[0])
@@ -271,13 +271,13 @@ class TestPhase2NoPersona:
         assert sim.persona_on is False
 
     def test_persona_condition_logged(self, sim):
-        with open(sim.logger.action_log_path) as f:
+        with open(sim.logger.action_log_path, encoding="utf-8") as f:
             for line in f:
                 entry = json.loads(line)
                 assert entry["persona_condition"] == "no_persona"
 
     def test_constraint_level_none(self, sim):
-        with open(sim.logger.action_log_path) as f:
+        with open(sim.logger.action_log_path, encoding="utf-8") as f:
             for line in f:
                 entry = json.loads(line)
                 assert entry["constraint_level"] == "none"
