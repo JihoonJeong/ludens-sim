@@ -40,9 +40,15 @@ class BaseLLMAdapter(ABC):
 
     def parse_response(self, raw_text: str) -> LLMResponse:
         try:
-            json_match = re.search(r'\{[^{}]*\}', raw_text, re.DOTALL)
-            if json_match:
-                data = json.loads(json_match.group())
+            text = raw_text
+            # Strip markdown code fences (```json ... ``` or ``` ... ```)
+            fence_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?\s*```', text, re.DOTALL)
+            if fence_match:
+                text = fence_match.group(1)
+            # Find outermost JSON object using brace balancing
+            json_str = self._extract_json_object(text)
+            if json_str:
+                data = json.loads(json_str)
                 return LLMResponse(
                     thought=data.get("thought", ""),
                     action=data.get("action", "idle"),
@@ -61,6 +67,36 @@ class BaseLLMAdapter(ABC):
             success=False,
             error="JSON 파싱 실패",
         )
+
+    @staticmethod
+    def _extract_json_object(text: str) -> Optional[str]:
+        """Extract outermost JSON object using brace balancing."""
+        start = text.find('{')
+        if start == -1:
+            return None
+        depth = 0
+        in_string = False
+        escape_next = False
+        for i in range(start, len(text)):
+            c = text[i]
+            if escape_next:
+                escape_next = False
+                continue
+            if c == '\\' and in_string:
+                escape_next = True
+                continue
+            if c == '"' and not escape_next:
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if c == '{':
+                depth += 1
+            elif c == '}':
+                depth -= 1
+                if depth == 0:
+                    return text[start:i + 1]
+        return None
 
     def validate_action(self, response: LLMResponse, valid_actions: list[str]) -> LLMResponse:
         if response.action not in valid_actions:

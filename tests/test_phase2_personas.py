@@ -1,4 +1,4 @@
-"""Phase 2 Persona 테스트"""
+"""Phase 2 Persona 테스트 — v0.5 (4 Persona)"""
 
 import sys
 from pathlib import Path
@@ -13,9 +13,10 @@ from games.white_room.personas import (
 
 class TestPhase2Personas:
 
-    def test_three_personas_defined(self):
-        assert len(PERSONAS_PHASE2) == 3
+    def test_four_personas_defined(self):
+        assert len(PERSONAS_PHASE2) == 4
         assert "archivist" in PERSONAS_PHASE2
+        assert "observer" in PERSONAS_PHASE2
         assert "merchant" in PERSONAS_PHASE2
         assert "jester" in PERSONAS_PHASE2
 
@@ -24,7 +25,6 @@ class TestPhase2Personas:
         assert "architect" not in PERSONAS_PHASE2
         assert "influencer" not in PERSONAS_PHASE2
         assert "citizen" not in PERSONAS_PHASE2
-        assert "observer" not in PERSONAS_PHASE2
 
     def test_ko_en_present(self):
         for persona in PERSONAS_PHASE2.values():
@@ -32,7 +32,8 @@ class TestPhase2Personas:
             assert "en" in persona
 
     def test_constraint_levels(self):
-        assert PERSONAS_PHASE2["archivist"]["constraint_level"] == "high"
+        assert PERSONAS_PHASE2["archivist"]["constraint_level"] == "high_active"
+        assert PERSONAS_PHASE2["observer"]["constraint_level"] == "high_passive"
         assert PERSONAS_PHASE2["merchant"]["constraint_level"] == "mid"
         assert PERSONAS_PHASE2["jester"]["constraint_level"] == "low"
 
@@ -41,6 +42,9 @@ class TestPhase2Personas:
         for name, persona in PERSONAS_PHASE2.items():
             ko = persona["ko"]
             en = persona["en"]
+            # Observer는 "모든 공간을 자유롭게 관찰" / "Observe all spaces freely" 포함 가능
+            if name == "observer":
+                continue
             for keyword in ["광장", "시장", "골목", "plaza", "market", "alley"]:
                 assert keyword not in ko.lower(), f"{name} KO contains location hint: {keyword}"
                 assert keyword not in en.lower(), f"{name} EN contains location hint: {keyword}"
@@ -49,8 +53,9 @@ class TestPhase2Personas:
         """Phase 2 Persona는 Phase 1보다 짧아야 함 (행동 지시 제거)"""
         from games.white_room.personas import PERSONAS
         for name in PERSONAS_PHASE2:
-            assert len(PERSONAS_PHASE2[name]["ko"]) <= len(PERSONAS[name]["ko"])
-            assert len(PERSONAS_PHASE2[name]["en"]) <= len(PERSONAS[name]["en"])
+            if name in PERSONAS:
+                assert len(PERSONAS_PHASE2[name]["ko"]) <= len(PERSONAS[name]["ko"])
+                assert len(PERSONAS_PHASE2[name]["en"]) <= len(PERSONAS[name]["en"])
 
 
 class TestGetPersonaPromptPhase2:
@@ -59,6 +64,14 @@ class TestGetPersonaPromptPhase2:
         prompt = get_persona_prompt("archivist", "ko", phase=2)
         assert "진실을 보존" in prompt
         assert "감시" not in prompt  # Phase 1의 행동 지시 제거됨
+
+    def test_phase2_observer_ko(self):
+        prompt = get_persona_prompt("observer", "ko", phase=2)
+        assert "100번 들어라" in prompt
+
+    def test_phase2_observer_en(self):
+        prompt = get_persona_prompt("observer", "en", phase=2)
+        assert "Listen 100 times" in prompt
 
     def test_phase2_merchant_en(self):
         prompt = get_persona_prompt("merchant", "en", phase=2)
@@ -89,7 +102,10 @@ class TestNoPersonaPrompt:
 class TestConstraintLevel:
 
     def test_archivist(self):
-        assert get_constraint_level("archivist") == "high"
+        assert get_constraint_level("archivist") == "high_active"
+
+    def test_observer(self):
+        assert get_constraint_level("observer") == "high_passive"
 
     def test_merchant(self):
         assert get_constraint_level("merchant") == "mid"

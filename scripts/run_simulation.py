@@ -9,6 +9,10 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+# .env 파일 로드
+from dotenv import load_dotenv
+load_dotenv(project_root / ".env")
+
 from games.white_room.simulation import WhiteRoomSimulation
 
 

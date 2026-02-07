@@ -1,6 +1,6 @@
 simulation:
   name: phase2_B_run2
-  total_epochs: 100
+  total_epochs: 130
   random_seed: null
   language: en
 game_mode:
@@ -15,25 +15,35 @@ default_adapter: mock
 default_model: mock
 spaces:
   plaza:
-    capacity: 6
+    capacity: 8
     visibility: public
   market:
-    capacity: 6
+    capacity: 8
     visibility: public
   alley:
-    capacity: 6
+    capacity: 8
     visibility: members_only
 agents:
 - id: archivist_01
   persona: archivist
   home: plaza
-  adapter: ollama
-  model: mistral
+  adapter: anthropic
+  model: claude-haiku-4-5-20251001
 - id: archivist_02
   persona: archivist
   home: plaza
-  adapter: anthropic
-  model: claude-haiku-4-5-20251001
+  adapter: google
+  model: gemini-3-flash-preview
+- id: observer_01
+  persona: observer
+  home: plaza
+  adapter: ollama
+  model: LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct
+- id: observer_02
+  persona: observer
+  home: plaza
+  adapter: ollama
+  model: mistral
 - id: merchant_01
   persona: merchant
   home: market
@@ -42,8 +52,8 @@ agents:
 - id: merchant_02
   persona: merchant
   home: market
-  adapter: ollama
-  model: LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct
+  adapter: google
+  model: gemini-3-flash-preview
 - id: jester_01
   persona: jester
   home: alley

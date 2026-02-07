@@ -1,4 +1,4 @@
-"""Phase 2 시뮬레이션 통합 테스트"""
+"""Phase 2 시뮬레이션 통합 테스트 — v0.5 (8 agents, 4 personas)"""
 
 import sys
 import json
@@ -14,7 +14,7 @@ from games.white_room.simulation import (
 
 @pytest.fixture
 def phase2_config(tmp_path):
-    """Phase 2 테스트용 config (persona_on=True)"""
+    """Phase 2 테스트용 config (persona_on=True, 8 agents)"""
     import yaml
     config = {
         "simulation": {
@@ -35,13 +35,15 @@ def phase2_config(tmp_path):
         "default_adapter": "mock",
         "default_model": "mock",
         "spaces": {
-            "plaza": {"capacity": 6, "visibility": "public"},
-            "market": {"capacity": 6, "visibility": "public"},
-            "alley": {"capacity": 6, "visibility": "members_only"},
+            "plaza": {"capacity": 8, "visibility": "public"},
+            "market": {"capacity": 8, "visibility": "public"},
+            "alley": {"capacity": 8, "visibility": "members_only"},
         },
         "agents": [
             {"id": "archivist_01", "persona": "archivist", "home": "plaza"},
             {"id": "archivist_02", "persona": "archivist", "home": "plaza"},
+            {"id": "observer_01", "persona": "observer", "home": "plaza"},
+            {"id": "observer_02", "persona": "observer", "home": "plaza"},
             {"id": "merchant_01", "persona": "merchant", "home": "market"},
             {"id": "merchant_02", "persona": "merchant", "home": "market"},
             {"id": "jester_01", "persona": "jester", "home": "alley"},
@@ -56,7 +58,7 @@ def phase2_config(tmp_path):
 
 @pytest.fixture
 def phase2_nopersona_config(tmp_path):
-    """Phase 2 테스트용 config (persona_on=False)"""
+    """Phase 2 테스트용 config (persona_on=False, 8 agents)"""
     import yaml
     config = {
         "simulation": {
@@ -77,17 +79,19 @@ def phase2_nopersona_config(tmp_path):
         "default_adapter": "mock",
         "default_model": "mock",
         "spaces": {
-            "plaza": {"capacity": 6, "visibility": "public"},
-            "market": {"capacity": 6, "visibility": "public"},
-            "alley": {"capacity": 6, "visibility": "members_only"},
+            "plaza": {"capacity": 8, "visibility": "public"},
+            "market": {"capacity": 8, "visibility": "public"},
+            "alley": {"capacity": 8, "visibility": "members_only"},
         },
         "agents": [
             {"id": "agent_01", "persona": "citizen", "home": "plaza"},
             {"id": "agent_02", "persona": "citizen", "home": "plaza"},
-            {"id": "agent_03", "persona": "citizen", "home": "market"},
+            {"id": "agent_03", "persona": "citizen", "home": "plaza"},
             {"id": "agent_04", "persona": "citizen", "home": "market"},
-            {"id": "agent_05", "persona": "citizen", "home": "alley"},
-            {"id": "agent_06", "persona": "citizen", "home": "alley"},
+            {"id": "agent_05", "persona": "citizen", "home": "market"},
+            {"id": "agent_06", "persona": "citizen", "home": "market"},
+            {"id": "agent_07", "persona": "citizen", "home": "alley"},
+            {"id": "agent_08", "persona": "citizen", "home": "alley"},
         ],
     }
     config_path = tmp_path / "phase2_nopersona.yaml"
@@ -137,7 +141,7 @@ class TestPhase2Init:
 
     def test_agents_count(self, phase2_config):
         sim = WhiteRoomSimulation(phase2_config)
-        assert len(sim.agents) == 6
+        assert len(sim.agents) == 8
 
     def test_phase_flag(self, phase2_config):
         sim = WhiteRoomSimulation(phase2_config)
@@ -177,7 +181,7 @@ class TestPhase2Run:
         return sim
 
     def test_run_completes(self, sim):
-        assert len(sim.action_log) == 5 * 6  # 5 epochs × 6 agents
+        assert len(sim.action_log) == 5 * 8  # 5 epochs × 8 agents
 
     def test_energy_unchanged(self, sim):
         for agent in sim.agents:
@@ -207,7 +211,12 @@ class TestPhase2Run:
             for line in f:
                 entry = json.loads(line)
                 persona = entry["persona"]
-                expected = {"archivist": "high", "merchant": "mid", "jester": "low"}
+                expected = {
+                    "archivist": "high_active",
+                    "observer": "high_passive",
+                    "merchant": "mid",
+                    "jester": "low",
+                }
                 assert entry["constraint_level"] == expected.get(persona, "none")
 
     def test_home_location_logged(self, sim):

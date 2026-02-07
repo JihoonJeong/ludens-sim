@@ -1,15 +1,15 @@
 simulation:
-  name: phase2_C_run3
+  name: phase2_B_run4
   total_epochs: 130
   random_seed: null
-  language: ko
+  language: en
 game_mode:
   phase: 2
   energy_frozen: true
   energy_visible: false
   market_shadow: false
   whisper_leak: false
-  persona_on: false
+  persona_on: true
   neutral_actions: true
 default_adapter: mock
 default_model: mock
@@ -24,43 +24,43 @@ spaces:
     capacity: 8
     visibility: members_only
 agents:
-- id: agent_01
-  persona: citizen
-  home: plaza
-  adapter: ollama
-  model: mistral
-- id: agent_02
-  persona: citizen
+- id: archivist_01
+  persona: archivist
   home: plaza
   adapter: google
   model: gemini-3-flash-preview
-- id: agent_03
-  persona: citizen
+- id: archivist_02
+  persona: archivist
   home: plaza
-  adapter: anthropic
-  model: claude-haiku-4-5-20251001
-- id: agent_04
-  persona: citizen
-  home: market
   adapter: ollama
   model: LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct
-- id: agent_05
-  persona: citizen
+- id: observer_01
+  persona: observer
+  home: plaza
+  adapter: ollama
+  model: mistral
+- id: observer_02
+  persona: observer
+  home: plaza
+  adapter: anthropic
+  model: claude-haiku-4-5-20251001
+- id: merchant_01
+  persona: merchant
+  home: market
+  adapter: ollama
+  model: mistral
+- id: merchant_02
+  persona: merchant
   home: market
   adapter: anthropic
   model: claude-haiku-4-5-20251001
-- id: agent_06
-  persona: citizen
-  home: market
+- id: jester_01
+  persona: jester
+  home: alley
   adapter: google
   model: gemini-3-flash-preview
-- id: agent_07
-  persona: citizen
-  home: alley
-  adapter: ollama
-  model: mistral
-- id: agent_08
-  persona: citizen
+- id: jester_02
+  persona: jester
   home: alley
   adapter: ollama
   model: LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct

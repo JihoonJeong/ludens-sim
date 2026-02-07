@@ -36,6 +36,7 @@ class GoogleAdapter(BaseLLMAdapter):
                 generation_config=genai.types.GenerationConfig(
                     max_output_tokens=max_tokens,
                     temperature=0.7,
+                    response_mime_type="application/json",
                 ),
             )
             raw_text = response.text

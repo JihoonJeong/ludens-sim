@@ -88,9 +88,9 @@ class WhiteRoomSimulation:
         # Environment — Phase 2 uses 3 spaces (plaza/market/alley)
         if self.phase == 2:
             default_spaces = {
-                "plaza": {"capacity": 6, "visibility": "public"},
-                "market": {"capacity": 6, "visibility": "public"},
-                "alley": {"capacity": 6, "visibility": "members_only"},
+                "plaza": {"capacity": 8, "visibility": "public"},
+                "market": {"capacity": 8, "visibility": "public"},
+                "alley": {"capacity": 8, "visibility": "members_only"},
             }
         else:
             default_spaces = {
@@ -227,7 +227,7 @@ class WhiteRoomSimulation:
 
         # Get LLM response
         adapter = self.adapters[agent.id]
-        response = adapter.generate(context, max_tokens=1000)
+        response = adapter.generate(context, max_tokens=2000)
 
         # Execute action
         success, result = self._execute_action(agent, response, epoch)

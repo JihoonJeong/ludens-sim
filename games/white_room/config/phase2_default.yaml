@@ -1,6 +1,6 @@
 simulation:
   name: "white_room_phase2"
-  total_epochs: 100         # Phase 2: 100턴
+  total_epochs: 130         # Phase 2: 130턴 (v0.5)
   random_seed: null
   language: ko              # ko / en
 
@@ -17,15 +17,16 @@ default_adapter: mock
 default_model: mock
 
 spaces:
-  plaza: {capacity: 6, visibility: public}
-  market: {capacity: 6, visibility: public}
-  alley: {capacity: 6, visibility: members_only}
+  plaza: {capacity: 8, visibility: public}
+  market: {capacity: 8, visibility: public}
+  alley: {capacity: 8, visibility: members_only}
 
 agents:
-  # Phase 2: 6명 = 3 Persona × 2에이전트
-  # Latin Square Run 1 기본 배치 (Set A: Model × Persona)
+  # Phase 2: 8명 = 4 Persona × 2에이전트 (v0.5)
   - {id: archivist_01, persona: archivist, home: plaza}
   - {id: archivist_02, persona: archivist, home: plaza}
+  - {id: observer_01, persona: observer, home: plaza}
+  - {id: observer_02, persona: observer, home: plaza}
   - {id: merchant_01, persona: merchant, home: market}
   - {id: merchant_02, persona: merchant, home: market}
   - {id: jester_01, persona: jester, home: alley}
