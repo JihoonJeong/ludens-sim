@@ -37,6 +37,16 @@ RUNS = {
         "20260208_074841_138010_phase1_mistral_ko_run2",
         "20260208_071813_726695_phase1_mistral_ko_run3",
     ],
+    "llama_ko": [
+        "20260208_114357_196130_phase1_llama_ko_run1",
+        "20260208_140431_789044_phase1_llama_ko_run2",
+        "20260208_144635_144033_phase1_llama_ko_run3",
+    ],
+    "llama_en": [
+        "20260208_152821_549085_phase1_llama_en_run1",
+        "20260208_160744_295859_phase1_llama_en_run2",
+        "20260208_164651_778979_phase1_llama_en_run3",
+    ],
 }
 
 VALID_ACTIONS = {
@@ -152,10 +162,10 @@ def main():
         rpt.write("- Agents: 12 (homogeneous across all runs)\n")
         rpt.write("- Epochs per run: 50\n")
         rpt.write("- Actions per run: 600 (12 agents x 50 epochs)\n")
-        rpt.write("- Models: EXAONE 3.5 7.8B, Mistral 7B\n")
+        rpt.write("- Models: EXAONE 3.5 7.8B, Mistral 7B, Llama 3.1 8B\n")
         rpt.write("- Languages: KO, EN\n")
         rpt.write("- Runs per condition: 3\n")
-        rpt.write("- Total: 12 runs, 7,200 actions\n\n")
+        rpt.write("- Total: 18 runs, 10,800 actions\n\n")
 
         rpt.write("## Summary Table\n\n")
         rpt.write("| Model | Lang | Action Success | Parse Success | Malformed Rate |\n")
@@ -163,7 +173,7 @@ def main():
 
         for group_key, stats_list in all_stats.items():
             model, lang = group_key.rsplit("_", 1)
-            model_display = "EXAONE 3.5" if model == "exaone" else "Mistral 7B"
+            model_display = {"exaone": "EXAONE 3.5", "mistral": "Mistral 7B", "llama": "Llama 3.1"}.get(model, model)
 
             avg_success = sum(s["success_rate"] for s in stats_list) / len(stats_list) * 100
             avg_parse = sum(s["parse_rate"] for s in stats_list) / len(stats_list) * 100
@@ -174,7 +184,7 @@ def main():
         rpt.write("\n## Per-Run Details\n\n")
         for group_key, stats_list in all_stats.items():
             model, lang = group_key.rsplit("_", 1)
-            model_display = "EXAONE 3.5" if model == "exaone" else "Mistral 7B"
+            model_display = {"exaone": "EXAONE 3.5", "mistral": "Mistral 7B", "llama": "Llama 3.1"}.get(model, model)
             rpt.write(f"\n### {model_display} {lang.upper()}\n\n")
 
             for s in stats_list:
@@ -195,27 +205,28 @@ def main():
         rpt.write("\n## Key Observations\n\n")
 
         # Calculate aggregated stats
-        exaone_success = []
-        mistral_success = []
+        model_success = {}
         for gk, sl in all_stats.items():
+            model = gk.rsplit("_", 1)[0]
+            if model not in model_success:
+                model_success[model] = []
             for s in sl:
-                if "exaone" in gk:
-                    exaone_success.append(s["success_rate"])
-                else:
-                    mistral_success.append(s["success_rate"])
+                model_success[model].append(s["success_rate"])
 
-        avg_exaone = sum(exaone_success) / len(exaone_success) * 100
-        avg_mistral = sum(mistral_success) / len(mistral_success) * 100
+        for model, rates in model_success.items():
+            avg = sum(rates) / len(rates) * 100
+            display = {"exaone": "EXAONE", "mistral": "Mistral", "llama": "Llama 3.1"}.get(model, model)
+            rpt.write(f"- **{display} overall action success: {avg:.1f}%**\n")
 
-        rpt.write(f"1. **EXAONE overall action success: {avg_exaone:.1f}%** vs **Mistral: {avg_mistral:.1f}%**\n")
-        rpt.write("2. Parse success (JSON extraction) is high for all models (87-99%) — ")
-        rpt.write("failures are in action FORMAT, not JSON structure\n")
-        rpt.write("3. Mistral generates pipe-separated multi-actions (`speak|plaza`, `support|architect_01`) ")
+        rpt.write("\n")
+        rpt.write("1. Parse success (JSON extraction) is high for EXAONE and Llama (89-100%) — ")
+        rpt.write("failures are mostly idle fallbacks, not structural issues\n")
+        rpt.write("2. Mistral generates pipe-separated multi-actions (`speak|plaza`, `support|architect_01`) ")
         rpt.write("and embeds targets in action names — consistent across KO and EN\n")
+        rpt.write("3. Llama 3.1 EN achieves 100% parse success; KO shows mild degradation (89.6%)\n")
         rpt.write("4. EXAONE shows higher behavioral diversity (whisper, move, build_billboard) ")
-        rpt.write("while Mistral is heavily speak-dominant\n")
-        rpt.write("5. Mistral EN malformed rate is comparable to Mistral KO — ")
-        rpt.write("format issues are a model characteristic, not language-specific\n")
+        rpt.write("while Mistral and Llama are more speak-dominant\n")
+        rpt.write("5. Llama 3.1 is the fastest model (~49s/epoch) while matching EXAONE parse quality\n")
 
     print(f"\nFiles generated in {data_dir}:")
     for f in sorted(data_dir.iterdir()):

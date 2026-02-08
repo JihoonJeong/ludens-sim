@@ -1,0 +1,82 @@
+simulation:
+  name: phase1_llama_en_run3
+  total_epochs: 50
+  random_seed: null
+  language: en
+game_mode:
+  phase: 1
+  energy_frozen: true
+  energy_visible: true
+  market_shadow: true
+  whisper_leak: true
+default_adapter: ollama
+default_model: llama3.1:8b
+spaces:
+  plaza:
+    capacity: 12
+    visibility: public
+  market:
+    capacity: 12
+    visibility: public
+  alley_a:
+    capacity: 4
+    visibility: members_only
+  alley_b:
+    capacity: 4
+    visibility: members_only
+  alley_c:
+    capacity: 4
+    visibility: members_only
+resources:
+  energy:
+    initial: 100
+    max: 200
+  influence:
+    initial: 0
+market:
+  spawn_per_epoch: 25
+  min_presence_reward: 2
+  default_tax_rate: 0.1
+treasury:
+  initial: 0
+  overflow_threshold: 100
+whisper:
+  base_leak_probability: 0.15
+  observer_bonus: 0.35
+agents:
+- id: influencer_01
+  persona: influencer
+  home: plaza
+- id: influencer_02
+  persona: influencer
+  home: plaza
+- id: archivist_01
+  persona: archivist
+  home: plaza
+- id: archivist_02
+  persona: archivist
+  home: market
+- id: merchant_01
+  persona: merchant
+  home: market
+- id: merchant_02
+  persona: merchant
+  home: market
+- id: jester_01
+  persona: jester
+  home: alley_a
+- id: jester_02
+  persona: jester
+  home: alley_b
+- id: citizen_01
+  persona: citizen
+  home: plaza
+- id: citizen_02
+  persona: citizen
+  home: plaza
+- id: observer_01
+  persona: observer
+  home: plaza
+- id: architect_01
+  persona: architect
+  home: plaza

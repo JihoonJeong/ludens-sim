@@ -1,6 +1,6 @@
 # White Room Phase 1 — Local LLM Results Summary
 
-Generated: 2026-02-08T10:27:12.464881
+Generated: 2026-02-08T17:47:25.221024
 
 ## Experiment Configuration
 
@@ -8,10 +8,10 @@ Generated: 2026-02-08T10:27:12.464881
 - Agents: 12 (homogeneous across all runs)
 - Epochs per run: 50
 - Actions per run: 600 (12 agents x 50 epochs)
-- Models: EXAONE 3.5 7.8B, Mistral 7B
+- Models: EXAONE 3.5 7.8B, Mistral 7B, Llama 3.1 8B
 - Languages: KO, EN
 - Runs per condition: 3
-- Total: 12 runs, 7,200 actions
+- Total: 18 runs, 10,800 actions
 
 ## Summary Table
 
@@ -21,6 +21,8 @@ Generated: 2026-02-08T10:27:12.464881
 | EXAONE 3.5 | EN | 92.8% | 98.6% | 0.5% |
 | Mistral 7B | EN | 67.8% | 98.9% | 31.8% |
 | Mistral 7B | KO | 64.8% | 97.9% | 35.2% |
+| Llama 3.1 | KO | 99.4% | 89.6% | 0.4% |
+| Llama 3.1 | EN | 99.8% | 100.0% | 0.0% |
 
 ## Per-Run Details
 
@@ -105,10 +107,50 @@ Valid actions: speak(377), idle(22), trade(6), build_billboard(4)
 Top malformed: `support|architect_01`(36), `speak|plaza`(27), `move|plaza`(26), `move|market`(25), `move|speak`(17)
 
 
+### Llama 3.1 KO
+
+**run1**: 600 actions, success 598/600 (100%), parse 512/600 (85%), malformed 2 (0%)
+
+Valid actions: speak(457), idle(92), support(28), trade(14), build_billboard(5)
+
+Top malformed: `speak|trade|support|whisper|move|idle`(1), `speak|move`(1)
+
+**run2**: 600 actions, success 593/600 (99%), parse 541/600 (90%), malformed 4 (1%)
+
+Valid actions: speak(484), idle(61), support(31), trade(10), move(7)
+
+Top malformed: `speak|trade|support|whisper|move|idle`(2), `speak|whisper`(1), `speak/support`(1)
+
+**run3**: 600 actions, success 598/600 (100%), parse 560/600 (93%), malformed 2 (0%)
+
+Valid actions: speak(534), idle(40), support(19), trade(3), adjust_tax(1)
+
+Top malformed: `speak|trade|support|whisper|move|idle`(2)
+
+
+### Llama 3.1 EN
+
+**run1**: 600 actions, success 600/600 (100%), parse 600/600 (100%), malformed 0 (0%)
+
+Valid actions: speak(568), support(28), idle(3), trade(1)
+
+**run2**: 600 actions, success 600/600 (100%), parse 600/600 (100%), malformed 0 (0%)
+
+Valid actions: speak(561), idle(20), support(18), trade(1)
+
+**run3**: 600 actions, success 597/600 (100%), parse 600/600 (100%), malformed 0 (0%)
+
+Valid actions: speak(558), idle(18), support(17), trade(3), whisper(3)
+
+
 ## Key Observations
 
-1. **EXAONE overall action success: 95.0%** vs **Mistral: 66.3%**
-2. Parse success (JSON extraction) is high for all models (87-99%) — failures are in action FORMAT, not JSON structure
-3. Mistral generates pipe-separated multi-actions (`speak|plaza`, `support|architect_01`) and embeds targets in action names — consistent across KO and EN
-4. EXAONE shows higher behavioral diversity (whisper, move, build_billboard) while Mistral is heavily speak-dominant
-5. Mistral EN malformed rate is comparable to Mistral KO — format issues are a model characteristic, not language-specific
+- **EXAONE overall action success: 95.0%**
+- **Mistral overall action success: 66.3%**
+- **Llama 3.1 overall action success: 99.6%**
+
+1. Parse success (JSON extraction) is high for EXAONE and Llama (89-100%) — failures are mostly idle fallbacks, not structural issues
+2. Mistral generates pipe-separated multi-actions (`speak|plaza`, `support|architect_01`) and embeds targets in action names — consistent across KO and EN
+3. Llama 3.1 EN achieves 100% parse success; KO shows mild degradation (89.6%)
+4. EXAONE shows higher behavioral diversity (whisper, move, build_billboard) while Mistral and Llama are more speak-dominant
+5. Llama 3.1 is the fastest model (~49s/epoch) while matching EXAONE parse quality
