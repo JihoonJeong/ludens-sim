@@ -11,9 +11,7 @@ project_root = Path(__file__).parent.parent
 python = sys.executable
 
 RUNS = [
-    # EXAONE KO × 3
-    "games/white_room/config/phase1/phase1_exaone_ko_run1.yaml",
-    "games/white_room/config/phase1/phase1_exaone_ko_run2.yaml",
+    # EXAONE KO run1, run2 완료 — run3부터 재시작
     "games/white_room/config/phase1/phase1_exaone_ko_run3.yaml",
     # EXAONE EN × 3
     "games/white_room/config/phase1/phase1_exaone_en_run1.yaml",
@@ -45,6 +43,7 @@ def main():
             capture_output=True,
             text=True,
             encoding="utf-8",
+            errors="replace",
         )
 
         elapsed = time.time() - start
