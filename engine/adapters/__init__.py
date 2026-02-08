@@ -5,12 +5,14 @@ from .mock import MockAdapter
 from .ollama import OllamaAdapter
 from .anthropic import AnthropicAdapter
 from .google import GoogleAdapter
+from .openai import OpenAIAdapter
 
 ADAPTER_REGISTRY = {
     "mock": MockAdapter,
     "ollama": OllamaAdapter,
     "anthropic": AnthropicAdapter,
     "google": GoogleAdapter,
+    "openai": OpenAIAdapter,
 }
 
 
@@ -31,6 +33,7 @@ __all__ = [
     "OllamaAdapter",
     "AnthropicAdapter",
     "GoogleAdapter",
+    "OpenAIAdapter",
     "ADAPTER_REGISTRY",
     "create_adapter",
 ]

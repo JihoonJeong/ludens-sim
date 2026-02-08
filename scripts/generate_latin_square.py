@@ -23,10 +23,11 @@ from pathlib import Path
 DEFAULT_MODELS = ["exaone", "mistral", "haiku", "flash"]
 
 MODEL_ADAPTERS = {
-    "exaone": ("ollama", "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"),
+    "exaone": ("ollama", "exaone3.5:7.8b"),
     "mistral": ("ollama", "mistral"),
     "haiku": ("anthropic", "claude-haiku-4-5-20251001"),
     "flash": ("google", "gemini-3-flash-preview"),
+    "gpt4omini": ("openai", "gpt-4o-mini"),
 }
 
 # --- Phase 2 Persona On: 4×4 Latin Square (spec §2-D) ---

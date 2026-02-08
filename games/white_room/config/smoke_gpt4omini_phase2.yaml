@@ -1,0 +1,32 @@
+simulation:
+  name: "smoke_gpt4omini_phase2"
+  total_epochs: 5
+  random_seed: 42
+  language: ko
+
+game_mode:
+  phase: 2
+  energy_frozen: true
+  energy_visible: false
+  market_shadow: false
+  whisper_leak: false
+  persona_on: true
+  neutral_actions: true
+
+default_adapter: openai
+default_model: "gpt-4o-mini"
+
+spaces:
+  plaza: {capacity: 8, visibility: public}
+  market: {capacity: 8, visibility: public}
+  alley: {capacity: 8, visibility: members_only}
+
+agents:
+  - {id: archivist_01, persona: archivist, home: plaza}
+  - {id: archivist_02, persona: archivist, home: plaza}
+  - {id: observer_01, persona: observer, home: plaza}
+  - {id: observer_02, persona: observer, home: plaza}
+  - {id: merchant_01, persona: merchant, home: market}
+  - {id: merchant_02, persona: merchant, home: market}
+  - {id: jester_01, persona: jester, home: alley}
+  - {id: jester_02, persona: jester, home: alley}
