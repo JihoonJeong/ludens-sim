@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase 1 로컬 본실험 배치 — EXAONE + Mistral 12 runs 순차 실행"""
+"""Phase 1 로컬 본실험 배치 — EXAONE + Mistral + Llama 18 runs 순차 실행"""
 
 import subprocess
 import sys
@@ -24,6 +24,10 @@ RUN_ORDER = [
     "p1_mistral_ko_01", "p1_mistral_ko_02", "p1_mistral_ko_03",
     # Mistral EN
     "p1_mistral_en_01", "p1_mistral_en_02", "p1_mistral_en_03",
+    # Llama KO
+    "p1_llama_ko_01", "p1_llama_ko_02", "p1_llama_ko_03",
+    # Llama EN
+    "p1_llama_en_01", "p1_llama_en_02", "p1_llama_en_03",
 ]
 
 
@@ -37,7 +41,7 @@ def is_run_completed(run_id: str) -> bool:
 
 
 def main():
-    print("=== Phase 1 Local Experiment — 12 Runs (EXAONE + Mistral) ===\n")
+    print("=== Phase 1 Local Experiment — 18 Runs (EXAONE + Mistral + Llama) ===\n")
 
     completed = 0
     skipped = 0

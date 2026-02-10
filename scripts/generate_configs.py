@@ -131,7 +131,7 @@ def generate_phase2_configs():
 
 
 # ============================================================
-# Phase 1 — 12 runs (EXAONE 6 + Mistral 6)
+# Phase 1 — 18 runs (EXAONE 6 + Mistral 6 + Llama 6)
 # ============================================================
 
 # Stage 1 Persona 배치 (12 agents)
@@ -182,12 +182,12 @@ def make_phase1_config(run_id, lang, model_name, adapter="ollama"):
 
 
 def generate_phase1_configs():
-    """Phase 1 로컬 12개 config 생성"""
+    """Phase 1 로컬 18개 config 생성 (EXAONE 6 + Mistral 6 + Llama 6)"""
     out_dir = project_root / "games" / "white_room" / "config" / "phase1" / "main"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     configs = []
-    for model_key, model_name in [("exaone", "exaone3.5:7.8b"), ("mistral", "mistral:7b")]:
+    for model_key, model_name in [("exaone", "exaone3.5:7.8b"), ("mistral", "mistral:7b"), ("llama", "llama3.1:8b")]:
         for lang in ["ko", "en"]:
             for i in range(1, 4):
                 run_id = f"p1_{model_key}_{lang}_{i:02d}"
@@ -209,7 +209,7 @@ if __name__ == "__main__":
     print("Phase 2 (14 configs):")
     n2 = generate_phase2_configs()
 
-    print(f"\nPhase 1 Local (12 configs):")
+    print(f"\nPhase 1 Local (18 configs):")
     n1 = generate_phase1_configs()
 
     print(f"\nTotal: {n1 + n2} configs generated.")

@@ -579,7 +579,7 @@ class WhiteRoomSimulation:
 
     def _execute_action(self, agent: Agent, response: LLMResponse, epoch: int) -> tuple[bool, dict]:
         action = response.action
-        target = response.target
+        target = response.target if isinstance(response.target, str) else None
         content = response.content
 
         if self.phase == 2:
