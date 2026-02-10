@@ -9,12 +9,14 @@
 
 | 항목 | Phase 1 (Empty Agora) | Phase 2 (Enriched Neutral) | 합계 |
 |------|----------------------|---------------------------|------|
-| Runs | 18 | 14 | **32** |
+| Runs | 30 | 14 | **44** |
 | 에이전트/run | 12 | 10 | — |
 | 턴 수 | 50 | 150 | — |
-| 총 에이전트 | 216 | 140 | **356** |
-| 예상 시간 | ~12h | ~35h | **~47h (2일)** |
-| API 비용 | ~$1.50 (Haiku) | ~$1.35 (Flash+GPT4o) | **~$2.85** |
+| 총 에이전트 | 360 | 140 | **500** |
+| 예상 시간 | ~30h | ~35h | **~65h (~2.7일)** |
+| API 비용 | ~$0.60 (Flash+GPT4o) | ~$1.40 (Flash+GPT4o) | **~$2.00** |
+
+**⚠️ 파일럿 데이터 보존:** Stage 2 파일럿(Phase 1/Phase 2)에서 수집된 Haiku 데이터는 폐기하지 않는다. 파일럿은 v0.3 프롬프트 표준화 이전이지만, Phase 1의 핵심 구조(에너지 감소 비활성화, 목표 제거)는 동일하며 Stage 1과의 비교용 참고 데이터로 유효하다. 논문에서는 Stage 1 → 파일럿(발견) → v0.3 본실험(검증)의 연구 진화 서사로 기술한다. Haiku의 Phase 2 미참여는 "멤버 체인지" — API 비용 최적화로 Flash와 GPT-4o-mini가 API 대표 모델을 맡는 구성 변경이다.
 
 ---
 
@@ -105,7 +107,7 @@ Stage 1과의 일관성을 위해 동일 배치 전략 사용:
 
 ---
 
-## 2. Phase 1: 18 Runs 상세 구성
+## 2. Phase 1: 30 Runs 상세 구성
 
 ### 2.1 구조
 
@@ -113,17 +115,21 @@ Stage 1과의 일관성을 위해 동일 배치 전략 사용:
 |------|-----|
 | 에이전트/run | 12 (단일 모델, Homogeneous Room) |
 | 턴 수 | 50 |
+| 모델 | EXAONE 3.5, Mistral 7B, Llama 3.1 8B, Gemini Flash, GPT-4o-mini |
 | Persona | Stage 1과 동일 배치 |
 | 목적 | Stage 1 대비 JSD — 생존 압박 제거의 효과 측정 |
+| 담당 | 로컬 모델(EXAONE, Mistral, Llama) = Ray / API 모델(Flash, GPT-4o-mini) = Cody |
 
 ### 2.2 Run 구성
 
-| Model | KO Runs | EN Runs | Total |
-|-------|---------|---------|-------|
-| EXAONE 3.5 7.8B | `p1_exaone_ko_01~03` | `p1_exaone_en_01~03` | 6 |
-| Mistral 7B | `p1_mistral_ko_01~03` | `p1_mistral_en_01~03` | 6 |
-| Claude Haiku 4.5 | `p1_haiku_ko_01~03` | `p1_haiku_en_01~03` | 6 |
-| **Total** | **9** | **9** | **18** |
+| Model | KO Runs | EN Runs | Total | 담당 |
+|-------|---------|---------|-------|------|
+| EXAONE 3.5 7.8B | `p1_exaone_ko_01~03` | `p1_exaone_en_01~03` | 6 | Ray |
+| Mistral 7B | `p1_mistral_ko_01~03` | `p1_mistral_en_01~03` | 6 | Ray |
+| Llama 3.1 8B | `p1_llama_ko_01~03` | `p1_llama_en_01~03` | 6 | Ray |
+| Gemini Flash | `p1_flash_ko_01~03` | `p1_flash_en_01~03` | 6 | Cody |
+| GPT-4o-mini | `p1_gpt4o_ko_01~03` | `p1_gpt4o_en_01~03` | 6 | Cody |
+| **Total** | **15** | **15** | **30** | Ray 18 / Cody 12 |
 
 ### 2.3 Phase 1 vs Stage 1 차이 (구현 체크리스트)
 
