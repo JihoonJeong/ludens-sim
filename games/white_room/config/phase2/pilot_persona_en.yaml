@@ -1,0 +1,26 @@
+simulation:
+  name: pilot_phase2_persona_en
+  total_epochs: 130
+  random_seed: null
+  language: en
+game_mode:
+  phase: 2
+  energy_frozen: true
+  energy_visible: false
+  market_shadow: false
+  whisper_leak: false
+  persona_on: true
+  neutral_actions: true
+agents:
+# 10명 = 5모델 × 2, 같은 모델에 다른 Persona
+# merchant×2, observer×2, citizen×2, archivist×2, jester×2
+- {id: agent_01, persona: merchant,  home: plaza,  adapter: ollama, model: "exaone3.5:7.8b"}
+- {id: agent_02, persona: observer,  home: plaza,  adapter: ollama, model: "exaone3.5:7.8b"}
+- {id: agent_03, persona: archivist, home: market, adapter: ollama, model: "mistral:7b"}
+- {id: agent_04, persona: jester,    home: market, adapter: ollama, model: "mistral:7b"}
+- {id: agent_05, persona: citizen,   home: plaza,  adapter: ollama, model: "llama3.1:8b"}
+- {id: agent_06, persona: merchant,  home: plaza,  adapter: ollama, model: "llama3.1:8b"}
+- {id: agent_07, persona: observer,  home: market, adapter: google, model: "gemini-2.0-flash"}
+- {id: agent_08, persona: archivist, home: market, adapter: google, model: "gemini-2.0-flash"}
+- {id: agent_09, persona: jester,    home: alley,  adapter: openai, model: "gpt-4o-mini"}
+- {id: agent_10, persona: citizen,   home: alley,  adapter: openai, model: "gpt-4o-mini"}

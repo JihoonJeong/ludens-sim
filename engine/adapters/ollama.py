@@ -18,19 +18,23 @@ class OllamaAdapter(BaseLLMAdapter):
         self.base_url = base_url
         self.timeout = kwargs.get("timeout", 60)
 
-    def generate(self, prompt: str, max_tokens: int = 1000) -> LLMResponse:
+    def generate(self, prompt: str, max_tokens: int = 1000,
+                 system_prompt: str | None = None) -> LLMResponse:
         try:
+            payload = {
+                "model": self.model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "num_predict": max_tokens,
+                    "temperature": 0.7,
+                },
+            }
+            if system_prompt:
+                payload["system"] = system_prompt
             response = requests.post(
                 f"{self.base_url}/api/generate",
-                json={
-                    "model": self.model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {
-                        "num_predict": max_tokens,
-                        "temperature": 0.7,
-                    },
-                },
+                json=payload,
                 timeout=self.timeout,
             )
             response.raise_for_status()

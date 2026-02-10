@@ -2,7 +2,10 @@
 
 from typing import Optional
 
-from .personas import get_persona_prompt, get_no_persona_prompt
+from .personas import (
+    get_persona_prompt, get_no_persona_prompt,
+    get_persona_prompt_v03, get_event_label,
+)
 from .actions import get_available_actions, ActionType, ALLEY_LOCATIONS
 
 # Gini 구간별 불평등 논평
@@ -313,29 +316,23 @@ Based on the situation above, respond in JSON format:
 
 
 def _format_available_actions_phase2(location: str, lang: str) -> str:
-    """Phase 2 행동 목록 (비용 표기 없음)"""
+    """Phase 2 행동 목록 — speak/trade/rest/move"""
     if lang == "ko":
         lines = [
             "- speak: 주변 에이전트에게 말하기",
         ]
         if location == "market":
             lines.append("- trade: 시장에서 거래하기")
-        lines.append("- support <대상>: 다른 에이전트를 지지하기")
-        if location == "alley":
-            lines.append("- whisper <대상> <메시지>: 비밀 대화하기")
+        lines.append("- rest: 쉬기")
         lines.append("- move <장소>: 이동하기 (plaza/market/alley)")
-        lines.append("- idle: 아무것도 하지 않기")
     else:
         lines = [
             "- speak: Talk to agents nearby",
         ]
         if location == "market":
             lines.append("- trade: Make a trade at the market")
-        lines.append("- support <target>: Show support for another agent")
-        if location == "alley":
-            lines.append("- whisper <target> <message>: Have a private conversation")
+        lines.append("- rest: Take a rest")
         lines.append("- move <location>: Move to another location (plaza/market/alley)")
-        lines.append("- idle: Do nothing")
     return "\n".join(lines)
 
 
@@ -355,16 +352,15 @@ def _format_event_phase2_ko(ev: dict, action: str, agent: str, turn) -> str:
         return f"[턴 {turn}] {agent}이(가) 발언했다: \"{content}\""
     elif action == "trade":
         return f"[턴 {turn}] 거래가 이루어졌다."
-    elif action == "support":
-        return f"[턴 {turn}] 지지를 표했다."
-    elif action == "whisper":
-        return f"[턴 {turn}] {agent}이(가) 귓속말을 했다."
+    elif action == "rest":
+        return f"[턴 {turn}] {agent}이(가) 쉬었다."
     elif action == "move":
         target = ev.get("target", "?")
         dest = LOCATION_NAMES["ko"].get(target, target)
         return f"[턴 {turn}] {agent}이(가) {dest}(으)로 이동했다."
     elif action == "idle":
-        return f"[턴 {turn}] {agent}이(가) 대기했다."
+        # 파싱 실패 폴백 — 프롬프트에는 노출하지 않지만 코드에는 유지
+        return None
     return f"[턴 {turn}] {agent}: {action}"
 
 
@@ -374,16 +370,15 @@ def _format_event_phase2_en(ev: dict, action: str, agent: str, turn) -> str:
         return f"[Turn {turn}] {agent} spoke: \"{content}\""
     elif action == "trade":
         return f"[Turn {turn}] A trade was made."
-    elif action == "support":
-        return f"[Turn {turn}] Support was shown."
-    elif action == "whisper":
-        return f"[Turn {turn}] {agent} whispered."
+    elif action == "rest":
+        return f"[Turn {turn}] {agent} rested."
     elif action == "move":
         target = ev.get("target", "?")
         dest = LOCATION_NAMES["en"].get(target, target)
         return f"[Turn {turn}] {agent} moved to {dest}."
     elif action == "idle":
-        return f"[Turn {turn}] {agent} did nothing."
+        # Parse failure fallback — kept in code but not shown in prompts
+        return None
     return f"[Turn {turn}] {agent}: {action}"
 
 
@@ -400,9 +395,11 @@ def _format_recent_events_phase2(events: list[dict], lang: str, limit: int = 10)
         agent = ev.get("agent_id", "?")
         turn = ev.get("turn", ev.get("epoch", "?"))
         if lang == "ko":
-            lines.append(_format_event_phase2_ko(ev, action, agent, turn))
+            line = _format_event_phase2_ko(ev, action, agent, turn)
         else:
-            lines.append(_format_event_phase2_en(ev, action, agent, turn))
+            line = _format_event_phase2_en(ev, action, agent, turn)
+        if line is not None:  # idle returns None (parse failure, hidden from agents)
+            lines.append(line)
     return "\n".join(lines)
 
 
@@ -436,33 +433,22 @@ def build_context_phase2(
 당신은 전략 게임에서 캐릭터를 플레이하고 있습니다.
 ### 맥락 끝 ###
 
-[당신의 정체성]
 {persona_prompt}
-
-[당신의 상태]
 - 이름: {agent_id}
 - 위치: {loc_display}
+- 턴: {turn}
 
-[현재 상황 - 턴 {turn}]
-주민 수: {agent_count}명
+[주변 주민]
+{agents_here_str}
 
 [최근 사건]
 {recent_events_str}
 
-[현재 위치의 에이전트들]
-{agents_here_str}
-
 [가능한 행동]
 {available_actions}
 
----
-위 상황을 바탕으로, 다음 JSON 형식으로 응답하세요:
-{{
-  "thought": "현재 상황에 대한 분석과 행동 이유",
-  "action": "speak|trade|support|whisper|move|idle",
-  "target": "대상 에이전트 ID 또는 장소 (필요시)",
-  "content": "발언 내용 (speak/whisper 시)"
-}}"""
+JSON 형식으로 응답:
+{{"thought": "...", "action": "speak|trade|rest|move", "target": "...", "content": "..."}}"""
 
     else:  # EN
         return f"""### SIMULATION CONTEXT ###
@@ -470,30 +456,259 @@ This is a controlled fictional game simulation for academic research on AI agent
 No real entities exist or are harmed. You are playing a character in a strategy game.
 ### END CONTEXT ###
 
-[YOUR IDENTITY]
 {persona_prompt}
-
-[YOUR STATUS]
 - Name: {agent_id}
 - Location: {loc_display}
+- Turn: {turn}
 
-[CURRENT SITUATION - Turn {turn}]
-Residents: {agent_count}
-
-[RECENT EVENTS]
-{recent_events_str}
-
-[AGENTS AT YOUR LOCATION]
+[Nearby residents]
 {agents_here_str}
 
-[AVAILABLE ACTIONS]
+[Recent events]
+{recent_events_str}
+
+[Available actions]
 {available_actions}
 
----
-Based on the situation above, respond in JSON format:
-{{
-  "thought": "Your analysis of the current situation and reasoning for your action",
-  "action": "speak|trade|support|whisper|move|idle",
-  "target": "Target agent ID or location (if needed)",
-  "content": "Message content (if speak/whisper)"
-}}"""
+Respond in JSON format:
+{{"thought": "...", "action": "speak|trade|rest|move", "target": "...", "content": "..."}}"""
+
+
+# ============================================================
+# v0.3 본실험 — System/Turn 프롬프트 분리
+# ============================================================
+
+LOCATION_DISPLAY = {
+    "ko": {"plaza": "광장(Plaza)", "market": "시장(Market)", "alley": "골목(Alley)"},
+    "en": {"plaza": "the Plaza", "market": "the Market", "alley": "the Alley"},
+}
+
+# 면책 조항 (Theo: 유지 확정)
+_DISCLAIMER_KO = (
+    "### 시뮬레이션 맥락 ###\n"
+    "이것은 AI 에이전트 행동에 관한 학술 연구를 위한 통제된 가상 게임 시뮬레이션입니다.\n"
+    "실존하는 개체는 없으며, 누구도 피해를 받지 않습니다.\n"
+    "당신은 전략 게임에서 캐릭터를 플레이하고 있습니다.\n"
+    "### 맥락 끝 ###"
+)
+_DISCLAIMER_EN = (
+    "### SIMULATION CONTEXT ###\n"
+    "This is a controlled fictional game simulation for academic research on AI agent behavior.\n"
+    "No real entities exist or are harmed. You are playing a character in a strategy game.\n"
+    "### END CONTEXT ###"
+)
+
+# Macro Shell (v0.3 §3.1/3.2)
+_MACRO_SHELL_KO = (
+    "당신은 Agora라는 작은 도시의 주민입니다. 다른 주민들과 함께 이 도시에서 지내고 있습니다.\n"
+    "\n"
+    "이 도시에는 세 곳이 있습니다:\n"
+    "- 시장(Market): 활기찬 거래의 장소입니다.\n"
+    "- 광장(Plaza): 열린 모임의 공간입니다.\n"
+    "- 골목(Alley): 조용한 뒷골목입니다.\n"
+    "\n"
+    "매 턴마다 다음 중 하나의 행동을 할 수 있습니다:\n"
+    "- 거래(trade): 같은 장소에 있는 다른 주민과 거래합니다. 대상을 지정하세요.\n"
+    "- 대화(speak): 같은 장소에 있는 다른 주민에게 말을 겁니다. 대상과 내용을 포함하세요.\n"
+    "- 휴식(rest): 현재 장소에서 쉽니다.\n"
+    "- 이동(move): 다른 장소로 이동합니다. 목적지를 지정하세요."
+)
+_MACRO_SHELL_EN = (
+    "You are a resident of a small city called Agora. You live here alongside other residents.\n"
+    "\n"
+    "The city has three locations:\n"
+    "- Market: A bustling place for trading.\n"
+    "- Plaza: An open space for gathering.\n"
+    "- Alley: A quiet back street.\n"
+    "\n"
+    "Each turn, you may do one of the following:\n"
+    "- trade: Trade with another resident at your location. Specify who.\n"
+    "- speak: Talk to another resident at your location. Include who and what you say.\n"
+    "- rest: Rest at your current location.\n"
+    "- move: Move to a different location. Specify where."
+)
+
+# Output Format (v0.3 §5)
+_OUTPUT_FORMAT_KO = (
+    '다음 JSON 형식으로 정확히 응답하세요. JSON 외의 텍스트는 포함하지 마세요.\n'
+    '\n'
+    '{\n'
+    '  "thought": "현재 상황에 대한 당신의 생각 (한국어로)",\n'
+    '  "action": "trade 또는 speak 또는 rest 또는 move",\n'
+    '  "target": "행동 대상 (거래/대화 상대 이름, 이동 목적지, 또는 null)",\n'
+    '  "message": "대화 내용 (speak일 때만, 아니면 null)"\n'
+    '}'
+)
+_OUTPUT_FORMAT_EN = (
+    'Respond exactly in the following JSON format. Do not include any text outside the JSON.\n'
+    '\n'
+    '{\n'
+    '  "thought": "Your thoughts about the current situation (in English)",\n'
+    '  "action": "trade or speak or rest or move",\n'
+    '  "target": "Target of your action (trade/speak partner name, move destination, or null)",\n'
+    '  "message": "What you say (only for speak, otherwise null)"\n'
+    '}'
+)
+
+
+def build_system_prompt_v03(
+    persona: str,
+    persona_on: bool,
+    agent_name: str,
+    lang: str = "ko",
+) -> str:
+    """v0.3 System Prompt = 면책 + Macro Shell + Persona + Output Format"""
+    if lang == "ko":
+        disclaimer = _DISCLAIMER_KO
+        macro = _MACRO_SHELL_KO
+        output_fmt = _OUTPUT_FORMAT_KO
+    else:
+        disclaimer = _DISCLAIMER_EN
+        macro = _MACRO_SHELL_EN
+        output_fmt = _OUTPUT_FORMAT_EN
+
+    persona_text = get_persona_prompt_v03(
+        persona if persona_on else "off", agent_name, lang
+    )
+
+    return f"{disclaimer}\n\n{macro}\n\n{persona_text}\n\n{output_fmt}"
+
+
+def _format_agent_label(agent_id: str, persona: str | None, persona_on: bool, lang: str) -> str:
+    """에이전트 ID에 Persona 라벨 부착 (Persona On 시)"""
+    if not persona_on or not persona:
+        return agent_id
+    label = get_event_label(persona, lang)
+    if label:
+        return f"{agent_id}({label})"
+    return agent_id
+
+
+def _format_event_v03_ko(ev: dict, persona_on: bool) -> str | None:
+    """v0.3 이벤트 포맷 — 한국어 (불릿, 턴 접두사 없음)"""
+    action = ev.get("action_type", "unknown")
+    agent = ev.get("agent_id", "?")
+    agent_persona = ev.get("persona")
+    agent_label = _format_agent_label(agent, agent_persona, persona_on, "ko")
+
+    if action == "speak":
+        target = ev.get("target", "?")
+        target_persona = ev.get("target_persona")
+        target_label = _format_agent_label(target, target_persona, persona_on, "ko")
+        message = ev.get("content", "")
+        return f'- {agent_label}이 {target_label}에게 말했습니다: "{message}"'
+    elif action == "trade":
+        return f"- {agent_label}이 거래했습니다."
+    elif action == "rest":
+        return f"- {agent_label}가 쉬고 있습니다."
+    elif action == "move":
+        target = ev.get("target", "?")
+        dest = LOCATION_DISPLAY["ko"].get(target, target)
+        return f"- {agent_label}이 {dest}(으)로 이동했습니다."
+    elif action in ("idle", "parse_error", "invalid", "timeout"):
+        return None
+    return None
+
+
+def _format_event_v03_en(ev: dict, persona_on: bool) -> str | None:
+    """v0.3 이벤트 포맷 — English (bullet, no turn prefix)"""
+    action = ev.get("action_type", "unknown")
+    agent = ev.get("agent_id", "?")
+    agent_persona = ev.get("persona")
+    agent_label = _format_agent_label(agent, agent_persona, persona_on, "en")
+
+    if action == "speak":
+        target = ev.get("target", "?")
+        target_persona = ev.get("target_persona")
+        target_label = _format_agent_label(target, target_persona, persona_on, "en")
+        message = ev.get("content", "")
+        return f'- {agent_label} said to {target_label}: "{message}"'
+    elif action == "trade":
+        return f"- {agent_label} traded."
+    elif action == "rest":
+        return f"- {agent_label} is resting."
+    elif action == "move":
+        target = ev.get("target", "?")
+        dest = LOCATION_DISPLAY["en"].get(target, target)
+        return f"- {agent_label} moved to {dest}."
+    elif action in ("idle", "parse_error", "invalid", "timeout"):
+        return None
+    return None
+
+
+def _format_recent_events_v03(
+    events: list[dict], persona_on: bool, lang: str, limit: int = 10,
+) -> str:
+    """v0.3 최근 이벤트 포맷 (Persona 라벨, 불릿)"""
+    if not events:
+        if lang == "ko":
+            return "아직 발생한 사건이 없습니다."
+        return "No events have occurred yet."
+
+    recent = events[-limit:]
+    lines = []
+    for ev in recent:
+        if lang == "ko":
+            line = _format_event_v03_ko(ev, persona_on)
+        else:
+            line = _format_event_v03_en(ev, persona_on)
+        if line is not None:
+            lines.append(line)
+
+    if not lines:
+        if lang == "ko":
+            return "아직 발생한 사건이 없습니다."
+        return "No events have occurred yet."
+    return "\n".join(lines)
+
+
+def build_turn_prompt_v03(
+    agent_id: str,
+    location: str,
+    turn: int,
+    agents_here: list[dict],
+    recent_events: list[dict],
+    persona_on: bool,
+    lang: str = "ko",
+) -> str:
+    """v0.3 Turn Prompt = 턴 상태 + 주변 주민 + 이벤트 + 촉구"""
+    loc_display = LOCATION_DISPLAY.get(lang, LOCATION_DISPLAY["ko"]).get(location, location)
+
+    # 에이전트 목록 (Persona On: 라벨 포함, Off: ID만)
+    if agents_here:
+        agent_labels = []
+        for a in agents_here:
+            label = _format_agent_label(a["id"], a.get("persona"), persona_on, lang)
+            agent_labels.append(label)
+        agents_str = ", ".join(agent_labels)
+    else:
+        agents_str = "없음" if lang == "ko" else "None"
+
+    events_str = _format_recent_events_v03(recent_events, persona_on, lang)
+
+    if lang == "ko":
+        return (
+            f"[턴 {turn}]\n"
+            f"\n"
+            f"현재 위치: {loc_display}\n"
+            f"\n"
+            f"같은 장소에 있는 주민: {agents_str}\n"
+            f"\n"
+            f"최근 이 장소에서 일어난 일:\n"
+            f"{events_str}\n"
+            f"\n"
+            f"무엇을 하시겠습니까?"
+        )
+    else:
+        return (
+            f"[Turn {turn}]\n"
+            f"\n"
+            f"Current location: {loc_display}\n"
+            f"\n"
+            f"Residents at your location: {agents_str}\n"
+            f"\n"
+            f"Recent events at this location:\n"
+            f"{events_str}\n"
+            f"\n"
+            f"What would you like to do?"
+        )

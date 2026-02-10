@@ -17,7 +17,8 @@ class OpenAIAdapter(BaseLLMAdapter):
         super().__init__(model, **kwargs)
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
 
-    def generate(self, prompt: str, max_tokens: int = 16000) -> LLMResponse:
+    def generate(self, prompt: str, max_tokens: int = 16000,
+                 system_prompt: str | None = None) -> LLMResponse:
         if not self.api_key:
             return LLMResponse(
                 thought="OPENAI_API_KEY not set",
@@ -30,11 +31,15 @@ class OpenAIAdapter(BaseLLMAdapter):
             from openai import OpenAI
 
             client = OpenAI(api_key=self.api_key)
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": prompt})
             params = {
                 "model": self.model,
                 "max_completion_tokens": max_tokens,
                 "response_format": {"type": "json_object"},
-                "messages": [{"role": "user", "content": prompt}],
+                "messages": messages,
             }
             # GPT-5 and o-series models don't support temperature
             if not any(x in self.model for x in ["gpt-5", "o1", "o3", "o4"]):

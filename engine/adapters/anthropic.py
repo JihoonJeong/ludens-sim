@@ -18,7 +18,8 @@ class AnthropicAdapter(BaseLLMAdapter):
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         self.max_tokens = kwargs.get("max_tokens", 1000)
 
-    def generate(self, prompt: str, max_tokens: int = 1000) -> LLMResponse:
+    def generate(self, prompt: str, max_tokens: int = 1000,
+                 system_prompt: str | None = None) -> LLMResponse:
         if not self.api_key:
             return LLMResponse(
                 thought="ANTHROPIC_API_KEY not set",
@@ -31,11 +32,14 @@ class AnthropicAdapter(BaseLLMAdapter):
             import anthropic
 
             client = anthropic.Anthropic(api_key=self.api_key)
-            message = client.messages.create(
-                model=self.model,
-                max_tokens=max_tokens,
-                messages=[{"role": "user", "content": prompt}],
-            )
+            create_kwargs = {
+                "model": self.model,
+                "max_tokens": max_tokens,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+            if system_prompt:
+                create_kwargs["system"] = system_prompt
+            message = client.messages.create(**create_kwargs)
             raw_text = message.content[0].text
             return self.parse_response(raw_text)
 

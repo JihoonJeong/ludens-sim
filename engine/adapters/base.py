@@ -35,7 +35,8 @@ class BaseLLMAdapter(ABC):
         self.config = kwargs
 
     @abstractmethod
-    def generate(self, prompt: str, max_tokens: int = 1000) -> LLMResponse:
+    def generate(self, prompt: str, max_tokens: int = 1000,
+                 system_prompt: str | None = None) -> LLMResponse:
         pass
 
     def parse_response(self, raw_text: str) -> LLMResponse:
@@ -53,7 +54,7 @@ class BaseLLMAdapter(ABC):
                     thought=data.get("thought", ""),
                     action=data.get("action", "idle"),
                     target=data.get("target"),
-                    content=data.get("content"),
+                    content=data.get("message") or data.get("content"),
                     raw_response={"text": raw_text, "parsed": data},
                     success=True,
                 )

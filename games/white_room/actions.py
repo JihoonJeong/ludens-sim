@@ -9,6 +9,7 @@ class ActionType(str, Enum):
     TRADE = "trade"
     SUPPORT = "support"
     WHISPER = "whisper"
+    REST = "rest"
     MOVE = "move"
     IDLE = "idle"
     # Architect 전용

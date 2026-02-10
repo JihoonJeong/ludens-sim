@@ -17,7 +17,8 @@ class GoogleAdapter(BaseLLMAdapter):
         super().__init__(model, **kwargs)
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
 
-    def generate(self, prompt: str, max_tokens: int = 1000) -> LLMResponse:
+    def generate(self, prompt: str, max_tokens: int = 1000,
+                 system_prompt: str | None = None) -> LLMResponse:
         if not self.api_key:
             return LLMResponse(
                 thought="GOOGLE_API_KEY not set",
@@ -30,7 +31,10 @@ class GoogleAdapter(BaseLLMAdapter):
             import google.generativeai as genai
 
             genai.configure(api_key=self.api_key)
-            model = genai.GenerativeModel(self.model)
+            model_kwargs = {}
+            if system_prompt:
+                model_kwargs["system_instruction"] = system_prompt
+            model = genai.GenerativeModel(self.model, **model_kwargs)
             response = model.generate_content(
                 prompt,
                 generation_config=genai.types.GenerationConfig(

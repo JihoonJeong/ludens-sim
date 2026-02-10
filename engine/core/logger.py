@@ -52,27 +52,52 @@ class SimulationLogger:
         resources_before: dict,
         resources_after: dict,
         extra: Optional[dict] = None,
+        *,
+        v03: bool = False,
     ):
         self._turn_counter += 1
-        entry = {
-            "epoch": epoch,
-            "turn": self._turn_counter,
-            "timestamp": datetime.now().isoformat(),
-            "agent_id": agent_id,
-            "persona": persona,
-            "location": location,
-            "action_type": action_type,
-            "target": target,
-            "content": content,
-            "thought": thought,
-            "success": success,
-            "resources_before": resources_before,
-            "resources_after": resources_after,
-        }
+        if v03:
+            # v0.3 스키마: 필드명 변경
+            entry = {
+                "epoch": epoch,
+                "turn": self._turn_counter,
+                "timestamp": datetime.now().isoformat(),
+                "agent_id": agent_id,
+                "persona": persona,
+                "location": location,
+                "action_type": action_type,
+                "action_target": target,
+                "action_content": content,
+                "thought": thought,
+                "action_success": success,
+            }
+        else:
+            # 파일럿/레거시 스키마
+            entry = {
+                "epoch": epoch,
+                "turn": self._turn_counter,
+                "timestamp": datetime.now().isoformat(),
+                "agent_id": agent_id,
+                "persona": persona,
+                "location": location,
+                "action_type": action_type,
+                "target": target,
+                "content": content,
+                "thought": thought,
+                "success": success,
+                "resources_before": resources_before,
+                "resources_after": resources_after,
+            }
         if extra:
             entry.update(extra)
 
         self._append_jsonl(self.action_log_path, entry)
+
+    def save_run_meta(self, meta: dict):
+        """Run 메타데이터 저장 (v0.3 §4.2)"""
+        meta_path = self.run_dir / "run_meta.json"
+        with open(meta_path, "w", encoding="utf-8") as f:
+            json.dump(meta, f, ensure_ascii=False, indent=2)
 
     def log_epoch_summary(
         self,

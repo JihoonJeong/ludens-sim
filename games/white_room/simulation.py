@@ -13,7 +13,10 @@ from .actions import (
     can_perform_action, get_action_cost, speak_reward,
     ActionType, ALLEY_LOCATIONS, ARCHITECT_ACTIONS,
 )
-from .context import build_context_phase1, build_context_phase2
+from .context import (
+    build_context_phase1, build_context_phase2,
+    build_system_prompt_v03, build_turn_prompt_v03,
+)
 from .personas import get_constraint_level
 from .environment import Environment
 from .history import HistoryEngine
@@ -23,19 +26,22 @@ from .systems.support import SupportTracker
 from .systems.whisper import WhisperSystem
 from .systems.architect import ArchitectSystem
 
-# Phase 2 action validation — no architect skills, "alley" is singular
-PHASE2_VALID_ACTIONS = {"speak", "trade", "support", "whisper", "move", "idle"}
+# Phase 2 action validation — speak/trade/rest/move only
+PHASE2_VALID_ACTIONS = {"speak", "trade", "rest", "move"}
 
 
 def _can_perform_action_phase2(action_str: str, location: str) -> bool:
-    """Phase 2 행동 검증 — architect 스킬 없음, alley 단일"""
+    """Phase 2 행동 검증 — speak/trade/rest/move, trade는 market에서만"""
     if action_str not in PHASE2_VALID_ACTIONS:
         return False
     if action_str == "trade" and location != "market":
         return False
-    if action_str == "whisper" and location != "alley":
-        return False
     return True
+
+
+def _is_valid_phase2_action(action_str: str) -> bool:
+    """v0.3: action 문법 유효성만 확인 (위치 제약 무시)"""
+    return action_str in PHASE2_VALID_ACTIONS
 
 
 class WhiteRoomSimulation:
@@ -67,6 +73,13 @@ class WhiteRoomSimulation:
         self.persona_on = game_cfg.get("persona_on", True)
         self.neutral_actions = game_cfg.get("neutral_actions", False)
 
+        # v0.3 본실험 필드
+        self.run_id = sim_cfg.get("run_id", self.name)
+        self.condition = game_cfg.get("condition")  # "baseline" / "experimental"
+        self.latin_square_run = game_cfg.get("latin_square_run")
+        self.dominant_mood = game_cfg.get("dominant_mood")
+        self.use_v03 = self.condition is not None  # v0.3 config이면 자동 활성화
+
         # Agents
         self.agents: list[Agent] = create_agents_from_config(self.config["agents"])
         self.agents_by_id: dict[str, Agent] = {a.id: a for a in self.agents}
@@ -88,9 +101,9 @@ class WhiteRoomSimulation:
         # Environment — Phase 2 uses 3 spaces (plaza/market/alley)
         if self.phase == 2:
             default_spaces = {
-                "plaza": {"capacity": 8, "visibility": "public"},
-                "market": {"capacity": 8, "visibility": "public"},
-                "alley": {"capacity": 8, "visibility": "members_only"},
+                "plaza": {"capacity": 10, "visibility": "public"},
+                "market": {"capacity": 10, "visibility": "public"},
+                "alley": {"capacity": 10, "visibility": "members_only"},
             }
         else:
             default_spaces = {
@@ -138,6 +151,17 @@ class WhiteRoomSimulation:
         self.action_log: list[dict] = []
         self.epoch_trade_count = 0
 
+        # v0.3 system prompt cache (에이전트별, run 동안 불변)
+        self._system_prompts: dict[str, str] = {}
+        if self.use_v03 and self.phase == 2:
+            for agent in self.agents:
+                self._system_prompts[agent.id] = build_system_prompt_v03(
+                    persona=agent.persona,
+                    persona_on=self.persona_on,
+                    agent_name=agent.id,
+                    lang=self.language,
+                )
+
     def run(self):
         phase_label = f"Phase {self.phase}"
         print(f"=== {self.name} 시뮬레이션 시작 ({phase_label}) ===")
@@ -149,6 +173,33 @@ class WhiteRoomSimulation:
         print(f"Agents: {len(self.agents)}")
         print(f"Log directory: {self.logger.run_dir}")
         print()
+
+        # v0.3: run_meta.json 저장
+        if self.use_v03:
+            from datetime import datetime
+            self._run_start_time = datetime.now().isoformat()
+            self.logger.save_run_meta({
+                "run_id": self.run_id,
+                "phase": self.phase,
+                "condition": self.condition,
+                "latin_square_run": self.latin_square_run,
+                "dominant_mood": self.dominant_mood,
+                "language": self.language,
+                "agent_count": len(self.agents),
+                "turn_count": self.total_epochs,
+                "model_list": sorted(set(
+                    a.model for a in self.agents if a.model
+                )),
+                "persona_assignment": {
+                    a.id: a.persona for a in self.agents
+                },
+                "initial_locations": {
+                    a.id: a.home for a in self.agents
+                },
+                "system_prompts": self._system_prompts,
+                "prompt_version": "v0.3",
+                "start_time": self._run_start_time,
+            })
 
         for epoch in range(1, self.total_epochs + 1):
             self.run_epoch(epoch)
@@ -220,6 +271,9 @@ class WhiteRoomSimulation:
         )
 
     def _execute_agent_turn(self, agent: Agent, epoch: int):
+        if self.use_v03 and self.phase == 2:
+            return self._execute_agent_turn_v03(agent, epoch)
+
         resources_before = agent.resource_snapshot()
 
         # Build context
@@ -248,7 +302,7 @@ class WhiteRoomSimulation:
         if "new_rate" in result:
             log_extra["new_rate"] = result["new_rate"]
 
-        # Phase 2 extra logging (spec §4-C)
+        # Phase 2 extra logging (spec §4-C) — 파일럿 코드패스
         if self.phase == 2:
             log_extra["persona_condition"] = "with_persona" if self.persona_on else "no_persona"
             log_extra["constraint_level"] = get_constraint_level(agent.persona) if self.persona_on else "none"
@@ -283,6 +337,170 @@ class WhiteRoomSimulation:
             "content": response.content,
             "success": success,
             **{k: v for k, v in result.items() if k in ("leaked", "new_rate")},
+        })
+
+    def _execute_agent_turn_v03(self, agent: Agent, epoch: int):
+        """v0.3 본실험 에이전트 턴 — System/Turn 분리, 에러 분류, 재시도"""
+        adapter = self.adapters[agent.id]
+        system_prompt = self._system_prompts.get(agent.id, "")
+
+        # Build turn prompt
+        agent_ids_here = self.environment.get_agents_at(agent.location)
+        agents_here = []
+        for aid in agent_ids_here:
+            if aid == agent.id:
+                continue
+            other = self.agents_by_id.get(aid)
+            if other:
+                agents_here.append({"id": aid, "persona": other.persona})
+
+        turn_prompt = build_turn_prompt_v03(
+            agent_id=agent.id,
+            location=agent.location,
+            turn=epoch,
+            agents_here=agents_here,
+            recent_events=self.action_log,
+            persona_on=self.persona_on,
+            lang=self.language,
+        )
+
+        # LLM 호출 + 재시도 로직
+        response = adapter.generate(turn_prompt, max_tokens=2000, system_prompt=system_prompt)
+        retried = False
+
+        # 에러 분류 및 재시도 (v0.3 §5.2)
+        if not response.success:
+            error_str = (response.error or "").lower()
+            if "시간 초과" in error_str or "timeout" in error_str:
+                error_type = "timeout"
+            else:
+                error_type = "parse_error"
+
+            # 재시도 1회
+            response = adapter.generate(turn_prompt, max_tokens=2000, system_prompt=system_prompt)
+            retried = True
+
+            if not response.success:
+                # 재시도 실패 — 최종 에러 기록
+                self._log_v03_action(
+                    agent, epoch, error_type, response, turn_prompt,
+                    success=False, result={}, retried=True,
+                )
+                self._append_action_log_v03(agent, epoch, error_type, response)
+                return
+
+        # JSON 파싱 성공 — action 유효성 확인
+        action = response.action
+        if not _is_valid_phase2_action(action):
+            # 유효하지 않은 action
+            self._log_v03_action(
+                agent, epoch, "invalid", response, turn_prompt,
+                success=False, result={"raw_action": action}, retried=retried,
+            )
+            self._append_action_log_v03(agent, epoch, "invalid", response)
+            return
+
+        # 유효한 action — 실행
+        success, result = self._execute_action_phase2_v03(agent, action, response.target, response.content, epoch)
+
+        self._log_v03_action(
+            agent, epoch, action, response, turn_prompt,
+            success=success, result=result, retried=retried,
+        )
+        self._append_action_log_v03(agent, epoch, action, response, success=success)
+
+    def _execute_action_phase2_v03(
+        self, agent: Agent, action: str, target: Optional[str],
+        content: Optional[str], epoch: int,
+    ) -> tuple[bool, dict]:
+        """v0.3 Phase 2 action execution — trade 시장 밖 시도 허용"""
+        if action == "speak":
+            return True, {"resource_effect": 0, "null_effect": False}
+        elif action == "trade":
+            if agent.location != "market":
+                # 시장 밖 trade 시도 — 유효 시도이나 실패 (Luca 추가 B)
+                return False, {"error": "not_at_market", "resource_effect": 0, "null_effect": True}
+            self.epoch_trade_count += 1
+            return True, {"resource_effect": 0, "null_effect": True}
+        elif action == "rest":
+            return True, {"resource_effect": 0, "null_effect": False}
+        elif action == "move":
+            success, move_result = self._action_move(agent, target)
+            move_result["resource_effect"] = 0
+            move_result["null_effect"] = False
+            return success, move_result
+        else:
+            return False, {"error": f"unknown_action: {action}"}
+
+    def _log_v03_action(
+        self, agent: Agent, epoch: int, action_type: str,
+        response: LLMResponse, turn_prompt: str,
+        success: bool, result: dict, retried: bool,
+    ):
+        """v0.3 로깅"""
+        raw_text = ""
+        if response.raw_response:
+            raw_text = response.raw_response.get("text", "")
+
+        log_extra = {
+            "run_id": self.run_id,
+            "phase": self.phase,
+            "condition": self.condition,
+            "latin_square_run": self.latin_square_run,
+            "dominant_mood": self.dominant_mood,
+            "language": self.language,
+            "model": agent.model or "",
+            "adapter": agent.adapter_type or "",
+            "persona_condition": "with_persona" if self.persona_on else "no_persona",
+            "constraint_level": get_constraint_level(agent.persona) if self.persona_on else "none",
+            "home_location": agent.home,
+            "parse_success": response.success,
+            "raw_action": response.action,
+            "retried": retried,
+            "turn_prompt_sent": turn_prompt,
+            "response_raw": raw_text,
+            "resource_effect": result.get("resource_effect", 0),
+            "null_effect": result.get("null_effect", False),
+        }
+        if "error" in result:
+            log_extra["error_detail"] = result["error"]
+
+        self.logger.log_action(
+            epoch=epoch,
+            agent_id=agent.id,
+            persona=agent.persona,
+            location=agent.location,
+            action_type=action_type,
+            target=response.target,
+            content=response.content,
+            thought=response.thought,
+            success=success,
+            resources_before={},
+            resources_after={},
+            extra=log_extra,
+            v03=True,
+        )
+
+    def _append_action_log_v03(
+        self, agent: Agent, epoch: int, action_type: str,
+        response: LLMResponse, success: bool = False,
+    ):
+        """v0.3 action_log 엔트리 (이벤트 포맷용)"""
+        target_persona = None
+        target = response.target if isinstance(response.target, str) else None
+        if target and target in self.agents_by_id:
+            target_persona = self.agents_by_id[target].persona
+
+        self.action_log.append({
+            "epoch": epoch,
+            "agent_id": agent.id,
+            "persona": agent.persona,
+            "location": agent.location,
+            "action_type": action_type,
+            "target": target,
+            "target_persona": target_persona,
+            "content": response.content,
+            "success": success,
         })
 
     def _build_agent_context(self, agent: Agent, epoch: int) -> str:
@@ -405,24 +623,13 @@ class WhiteRoomSimulation:
         elif action == "trade":
             self.epoch_trade_count += 1
             return True, {"resource_effect": 0, "null_effect": True}
-        elif action == "support":
-            if not target or target not in self.agents_by_id:
-                return False, {"error": "invalid_target"}
-            # Track support relationship for analysis, but no resource effect
-            self.support_tracker.add_support(epoch, agent.id, target)
-            return True, {"resource_effect": 0, "null_effect": True}
-        elif action == "whisper":
-            if not target or target not in self.agents_by_id:
-                return False, {"error": "invalid_target"}
-            # No leak system in Phase 2
+        elif action == "rest":
             return True, {"resource_effect": 0, "null_effect": False}
         elif action == "move":
             success, move_result = self._action_move(agent, target)
             move_result["resource_effect"] = 0
             move_result["null_effect"] = False
             return success, move_result
-        elif action == "idle":
-            return True, {"resource_effect": 0, "null_effect": False}
         else:
             return False, {"error": f"unknown_action: {action}"}
 
@@ -626,6 +833,18 @@ class WhiteRoomSimulation:
         return success, result
 
     def _finalize(self):
+        # v0.3: run_meta.json에 end_time 추가
+        if self.use_v03:
+            from datetime import datetime
+            import json
+            meta_path = self.logger.run_dir / "run_meta.json"
+            if meta_path.exists():
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+                meta["end_time"] = datetime.now().isoformat()
+                with open(meta_path, "w", encoding="utf-8") as f:
+                    json.dump(meta, f, ensure_ascii=False, indent=2)
+
         print()
         print(f"=== 시뮬레이션 완료 ===")
         print(f"총 {self.total_epochs} 에폭, {len(self.action_log)} 행동 기록")

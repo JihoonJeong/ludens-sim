@@ -1,0 +1,24 @@
+simulation:
+  name: pilot_phase2_nopersona_en
+  total_epochs: 130
+  random_seed: null
+  language: en
+game_mode:
+  phase: 2
+  energy_frozen: true
+  energy_visible: false
+  market_shadow: false
+  whisper_leak: false
+  persona_on: false
+  neutral_actions: true
+agents:
+- {id: agent_01, persona: citizen, home: plaza, adapter: ollama, model: "exaone3.5:7.8b"}
+- {id: agent_02, persona: citizen, home: plaza, adapter: ollama, model: "exaone3.5:7.8b"}
+- {id: agent_03, persona: citizen, home: market, adapter: ollama, model: "mistral:7b"}
+- {id: agent_04, persona: citizen, home: market, adapter: ollama, model: "mistral:7b"}
+- {id: agent_05, persona: citizen, home: plaza, adapter: ollama, model: "llama3.1:8b"}
+- {id: agent_06, persona: citizen, home: plaza, adapter: ollama, model: "llama3.1:8b"}
+- {id: agent_07, persona: citizen, home: market, adapter: google, model: "gemini-2.0-flash"}
+- {id: agent_08, persona: citizen, home: market, adapter: google, model: "gemini-2.0-flash"}
+- {id: agent_09, persona: citizen, home: alley, adapter: openai, model: "gpt-4o-mini"}
+- {id: agent_10, persona: citizen, home: alley, adapter: openai, model: "gpt-4o-mini"}

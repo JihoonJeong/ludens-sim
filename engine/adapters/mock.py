@@ -14,7 +14,8 @@ class MockAdapter(BaseLLMAdapter):
         self.persona = kwargs.get("persona", "citizen")
         self.agent_id = kwargs.get("agent_id", "unknown")
 
-    def generate(self, prompt: str, max_tokens: int = 1000) -> LLMResponse:
+    def generate(self, prompt: str, max_tokens: int = 1000,
+                 system_prompt: str | None = None) -> LLMResponse:
         location = self._extract_location(prompt)
         available_actions = self._extract_available_actions(prompt)
         agents_here = self._extract_agents_here(prompt)
