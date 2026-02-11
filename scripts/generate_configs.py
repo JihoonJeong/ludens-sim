@@ -203,6 +203,31 @@ def generate_phase1_configs():
     return len(configs)
 
 
+def generate_phase1_api_configs():
+    """Phase 1 API 12개 config 생성 (Flash 6 + GPT-4o-mini 6)"""
+    out_dir = project_root / "games" / "white_room" / "config" / "phase1" / "main"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    configs = []
+    for model_key, model_name, adapter in [
+        ("flash", "gemini-2.0-flash", "google"),
+        ("gpt4o", "gpt-4o-mini", "openai"),
+    ]:
+        for lang in ["ko", "en"]:
+            for i in range(1, 4):
+                run_id = f"p1_{model_key}_{lang}_{i:02d}"
+                cfg = make_phase1_config(run_id, lang, model_name, adapter=adapter)
+                configs.append((run_id, cfg))
+
+    for run_id, cfg in configs:
+        path = out_dir / f"{run_id}.yaml"
+        with open(path, "w", encoding="utf-8") as f:
+            yaml.dump(cfg, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+        print(f"  {path.name}")
+
+    return len(configs)
+
+
 if __name__ == "__main__":
     print("=== v0.3 Config Generator ===\n")
 
@@ -212,4 +237,7 @@ if __name__ == "__main__":
     print(f"\nPhase 1 Local (18 configs):")
     n1 = generate_phase1_configs()
 
-    print(f"\nTotal: {n1 + n2} configs generated.")
+    print(f"\nPhase 1 API (12 configs):")
+    n1a = generate_phase1_api_configs()
+
+    print(f"\nTotal: {n1 + n1a + n2} configs generated.")
