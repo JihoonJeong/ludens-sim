@@ -401,7 +401,9 @@ class WhiteRoomSimulation:
             return
 
         # 유효한 action — 실행
-        success, result = self._execute_action_phase2_v03(agent, action, response.target, response.content, epoch)
+        target = response.target if isinstance(response.target, str) else None
+        content = response.content if isinstance(response.content, str) else None
+        success, result = self._execute_action_phase2_v03(agent, action, target, content, epoch)
 
         self._log_v03_action(
             agent, epoch, action, response, turn_prompt,
